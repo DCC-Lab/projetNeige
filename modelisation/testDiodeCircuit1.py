@@ -12,3 +12,14 @@ plt.plot(lux, voltage, linewidth=0.8)
 plt.xlabel("Light Power (Lux)")
 plt.ylabel("Amplified Diode Voltage (V)")
 plt.show()
+
+
+# Test No2
+lux = [898, 762, 659, 533, 382, 171, 96, 36, 20, 9]
+voltage = [73.7, 69.4, 67.2, 65.2, 63.3, 60.5, 60.1, 58.4, 20.0, 9.01]
+noize = [0.5, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+plt.plot(lux, voltage, linewidth=0.8)
+plt.xlabel("Light Power (Lux)")
+plt.ylabel("Amplified Diode Voltage (V)")
+plt.show()

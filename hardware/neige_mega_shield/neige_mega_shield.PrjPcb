@@ -103,7 +103,7 @@ ClassGenCCAutoRoomEnabled=1
 ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
-DocumentUniqueId=
+DocumentUniqueId=QOGFLXVJ
 
 [Document5]
 DocumentPath=..\..\..\..\..\..\Google Drive\PROJETS\ELECTRONICS\COMPONENT LIBRARY\AcqBoxLib.SchLib
@@ -120,7 +120,7 @@ ClassGenCCAutoRoomEnabled=1
 ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
-DocumentUniqueId=
+DocumentUniqueId=QDPTUTYV
 
 [Document6]
 DocumentPath=..\..\..\..\..\..\Google Drive\PROJETS\ELECTRONICS\COMPONENT LIBRARY\GeneralComponentsLibrary.PcbLib
@@ -137,7 +137,7 @@ ClassGenCCAutoRoomEnabled=1
 ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
-DocumentUniqueId=
+DocumentUniqueId=PATBEVBD
 
 [Document7]
 DocumentPath=..\..\..\..\..\..\Google Drive\PROJETS\ELECTRONICS\COMPONENT LIBRARY\GeneralComponentsLibrary.SchLib
@@ -154,7 +154,7 @@ ClassGenCCAutoRoomEnabled=1
 ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
-DocumentUniqueId=
+DocumentUniqueId=EQLEDWAR
 
 [Document8]
 DocumentPath=..\..\..\..\..\..\Google Drive\PROJETS\ELECTRONICS\COMPONENT LIBRARY\HeaderPinsLibrary.PcbLib
@@ -206,6 +206,40 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=HCJFKYQT
+
+[Document11]
+DocumentPath=Lib\ArduinoMEGE\ArduinoMEGE.IntLib
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=-1
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=
+
+[Document12]
+DocumentPath=Lib\TSSOP14.PcbLib
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=-1
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=DCSAJLAH
 
 [Configuration1]
 Name=Sources
