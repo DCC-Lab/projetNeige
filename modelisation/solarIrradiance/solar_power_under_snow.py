@@ -47,7 +47,6 @@ def solarIntensity(year, month, date, hour, minute, altitude, latitude=48):
     vnorm = np.array([0, 0, -1])  # plane pointing zenith
     date = datetime(year, month, date, hour, minute)
     TSA = irradiance_on_plane(vnorm, altitude, date, latitude)
-    TSA *= 1e-6 # pour l'avoir en W/mm^2
     return TSA
 
 
