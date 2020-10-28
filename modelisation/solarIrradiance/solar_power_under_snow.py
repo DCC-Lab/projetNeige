@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pylab as plt
 from scipy.interpolate import interp1d
 from datetime import datetime
@@ -51,30 +50,23 @@ def solarIntensity(year, month, date, hour, minute, altitude, latitude=48):
     TSA *= 1e-6 # pour l'avoir en W/mm^2
     return TSA
 
-def solarSpectrum(wavelength, TSA=1000, plot=False):
-    # sort l'energie solaire en fonction du spectre
-    # tout est en nm
 
-    # telecharge un fichier de AM1.5
-    df = pd.read_csv('astmg173.csv', sep=';') #https://www.nrel.gov/grid/solar-resource/spectra-am1.5.html
-    wvl = np.array(df['Wvlgth nm'])
-    I = np.array(df['Direct+circumsolar W*m-2*nm-1'])
-    for count, wl in enumerate(wvl):
-        wvl[count] = float(wl)
-        I[count] = float(I[count])
-    I = I/sum(I)*TSA # calcule l'intensité en fonction du TSA
-    # calcule l'intensite pour chaque bande
-    f = interp1d(wvl, I, kind='linear')
-    xnew = wavelength
-    spectre_my_wvl = f(xnew)
+def solarSpectrum(ROI=None, TSA=None):
+    d = np.loadtxt('astmg173.csv', delimiter=';', skiprows=1, usecols=[0, 3])
+    wave = d[:, 0]
+    intensity = d[:, 1]
 
-    if plot:
-        plt.figure(1)
+    if TSA is None:
+        TSA = totalSolarIntensity()
 
-        plt.plot(wvl, I, color ='k')
-        plt.plot(wavelength, spectre_my_wvl, color='r')
-        plt.savefig('figure_out/solar_spectrum.png')
-    return spectre_my_wvl
+    intensity *= TSA / np.sum(intensity)
+
+    if ROI is None:
+        return intensity
+    else:
+        f = interp1d(wave, intensity, kind='linear')
+        return f(ROI)
+
 
 
 
