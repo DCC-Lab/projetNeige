@@ -30,7 +30,7 @@ plt.ylabel("V_out")
 
 print("K = ", round(K, 4))
 print("Log denominator (R*I_s) = ", vmin)
-rel_error = round((x[1]-x[0]) / x[0] * 100, 3)
+rel_error = round((x[1]-x[0]) / np.mean([x[1], x[0]]) * 100, 3)
 print("Instantaneous Relative Uncertainty = {} %".format(rel_error * 2 ** LSB_error))
 print("Averaged Relative Uncertainty (N={}) = {:.2f} %".format(N, rel_error * (2 ** (LSB_error / np.sqrt(N)))))
 print("Relative Uncertainty = {} %".format(rel_error))
