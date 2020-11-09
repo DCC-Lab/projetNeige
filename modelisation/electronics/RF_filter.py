@@ -1,13 +1,14 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+mpl.use('Qt5Agg')
 
 u = 1*10**-6
 M = 1*10**6
 
 # RF Filter for preamp Op-Amp
 
-Rf = 0.01*M
+Rf = 0.1*M
 Cf = 1*u
 w = np.linspace(0.01, 60, 1000)
 
