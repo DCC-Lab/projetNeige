@@ -1,51 +1,84 @@
 
-#define ARRAY_SIZE(array) ((sizeof(array))/(sizeof(array[0])))
+#define ARRAY_SIZE(array) ((sizeof(array))/(sizeof(int)))
 
 
-int lastIndex = 100;
+int sizeOfArray = 100;
 int a[101];
-long counter = 0;
-
+  long counter = 0;
+  float trueavg = 5;
+  float truesd = 1;
 
 
 void setup() {
   Serial.begin(115200);
+  
 }
 
 
 void loop() {
 
-  if (counter<lastIndex){
-      a[counter] = analogRead(A0);
-      Serial.print("VALUE:");
+  if (counter<sizeOfArray){
+      a[counter] = analogRead(A6);
+      Serial.print("COUNTER:");
+      Serial.print(counter);
+      
+      Serial.print(", VALUE:");
       Serial.print(a[counter]);
 
       counter++;
     }
 
   else{
-    a[lastIndex] = analogRead(A0);
-    Serial.print("VALUE:");
-      Serial.print(a[lastIndex]);
-      for (int i = 0; i < lastIndex; ++i){ 
+    a[sizeOfArray] = analogRead(A6);
+    Serial.print("LASTVALUE:");
+      Serial.print(a[sizeOfArray]);
+      for (int i = 0; i < sizeOfArray; ++i){ 
           a[i] = a[i+1];
         }
+//    printArray(a);
   }
 
   Serial.print(", Average:");
-  Serial.print(average_array(a));  
-  Serial.print("\n");  
-  delay(10);
+  trueavg = getMean(a, sizeOfArray);  
+  Serial.print(trueavg);  
+   
+
+Serial.print(", SD:");
+  truesd = getStdDev(a, sizeOfArray);  
+  Serial.print(truesd);  
+  Serial.print("\n"); 
+
+  
+  delay(100);
 }
 
+void printArray(int b[]){
+  Serial.print("[");
+  for(int i = 0; i < sizeOfArray; i++)
+    {
+      Serial.print(b[i]);
+      Serial.print(",");
+    }
+  Serial.print("]");
+}
 
-int average_array(int b[]){
-  int s = 0;
-  int avg = 0;
-  for (int i=0;i<ARRAY_SIZE(b);i++){
-      Serial.print(s);
-      s += b[i];
+float getMean(int * val, int arrayCount) {
+  long total = 0;
+  for (int i = 0; i < arrayCount; i++) {
+    total = total + val[i];
   }
-  avg = s/(ARRAY_SIZE(b));
+  float avg = total/(float)arrayCount;
   return avg;
+}
+
+float getStdDev(int * val, int arrayCount) {
+  float avg = getMean(val, arrayCount);
+  long total = 0;
+  for (int i = 0; i < arrayCount; i++) {
+    total = total + (val[i] - avg) * (val[i] - avg);
+  }
+
+  float variance = total/(float)arrayCount;
+  float stdDev = sqrt(variance);
+  return stdDev;
 }
