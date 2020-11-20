@@ -2,18 +2,22 @@
 RaspBerry Pi Acquisition Script
 Launched at startup
 
-1. Check for Git updates (?)
-2. For each COM, integrate signal for N points. Each COM corresponds to 4 PD.
-3. Save data to file
-4. If time to take a picture (count or RTC check), take a CAM pic, compress it and save it.
-5. Send generated data over SSH
+- Check for Git updates (?)
+- Wait for internet connection (?)
+- For each COM, integrate signal for N points. Each COM corresponds to 4 PD.
+- Save data to file
+- If time to take a picture (count or RTC check), take a CAM pic, compress it and save it.
+- Send generated data over SSH
 """
+
 import os
 import paramiko
 import numpy as np
 from serial import Serial
 from datetime import datetime
 from serial.tools import list_ports
+
+directory = os.path.dirname(os.path.abspath(__file__))
 
 
 def readData(ser, N):
@@ -31,13 +35,13 @@ def readData(ser, N):
 
 
 # public 24.201.18.112, lan 192.168.0.188 
-def copyToServer(filepath, server="192.168.0.188", username="Alegria"):
+def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
     ssh.connect(server, username=username)
     sftp = ssh.open_sftp()
-    sftp.put(os.path.join(os.getcwd(), filepath), os.path.join("C:/SnowOptics", filepath))
+    sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
     sftp.close()
     ssh.close()
 
@@ -63,6 +67,6 @@ if __name__ == "__main__":
     data = np.mean(data, axis=0)  # shape (16,)
 
     filepath = "data/PD_{}.txt".format(datetime.now().strftime("%y%m%d_%H%M"))
-    np.savetxt(filepath, data)
+    np.savetxt(os.path.join(directory, filepath), data)
 
     copyToServer(filepath)
