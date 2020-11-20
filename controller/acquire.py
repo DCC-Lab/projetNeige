@@ -1,5 +1,7 @@
 import os
+import sys
 import time
+import logging
 import paramiko
 import numpy as np
 from serial import Serial
@@ -9,6 +11,7 @@ from serial.tools import list_ports
 from http.client import HTTPConnection
 
 directory = os.path.dirname(os.path.abspath(__file__))
+recTimeStamp = datetime.now().strftime("%y%m%d_%H%M")
 
 """
 RaspBerry Pi Acquisition Script
@@ -25,6 +28,17 @@ Launched at startup
 
 N = 100
 captureIntervals = 6
+
+
+def setupLogger():
+    logFilePath = os.path.join(directory, "data/log_{}.log".format(recTimeStamp))
+    logging.basicConfig(level=logging.INFO, 
+                        handlers=[logging.FileHandler(logFilePath), 
+                                  logging.StreamHandler()])
+
+
+def print(s):
+    logging.info(s)
 
 
 def connectToInternet():
@@ -88,7 +102,8 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
 
 
 if __name__ == "__main__":
-    recTimeStamp = datetime.now().strftime("%y%m%d_%H%M")
+    setupLogger()
+    
     # ports = [e.device for e in list_ports.comports()]
     # print("Available ports: ", ports)
     
