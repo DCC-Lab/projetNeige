@@ -35,10 +35,8 @@ def setupLogger():
     logging.basicConfig(level=logging.INFO, 
                         handlers=[logging.FileHandler(logFilePath), 
                                   logging.StreamHandler()])
-
-
-def print(s):
-    logging.info(s)
+    def print(s):
+        logging.info(s)
 
 
 def connectToInternet():
@@ -139,3 +137,5 @@ if __name__ == "__main__":
         print("... Image saved to server.")
     
     print("Acquisition successful. ")
+    
+    # os.system("shutdown now")
