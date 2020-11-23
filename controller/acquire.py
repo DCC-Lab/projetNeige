@@ -27,7 +27,7 @@ Launched at startup
 - Send data and image to server over SSH
 """
 
-N = 100
+N = 20
 captureIntervals = 6
 
 
@@ -41,12 +41,13 @@ def print(s):
     logging.info(s)
 
 
-def connectToInternet():
+def connectToInternet(tries=2):
     try:
         print("... Connecting.")
         # Activate 3G modem (turns off if it lost power)
-        s = Serial("/dev/ttyUSB2", baudrate=115200)
+        s = Serial("/dev/ttyUSB2", baudrate=115200, timeout=10)
         s.write("""AT#ECM=1,0,"","",0\r""".encode())
+        time.sleep(5)
         s.close()
 
         # Simple HEAD request to test internet connection.
@@ -55,11 +56,15 @@ def connectToInternet():
             conn.request("HEAD", "/")
             conn.close()
             return 1
-        except:
+        except Exception as e:
+            print("Error with HTTP Request: {}".format(e))
             conn.close()
+            if tries > 1:
+                time.sleep(2)
+                return connectToInternet(tries=tries-1)
             return 0
     except Exception as e:
-        logging.info(e)
+        print("Error with 3G modem port: {}".format(e))
         return 0
 
 
@@ -115,23 +120,39 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
 
 
 if __name__ == "__main__":
+    time.sleep(5)
+
     ports = [e.device for e in list_ports.comports()]
     print("Available ports: {}".format(ports))
-    
-    r = connectToInternet()
-    print("... Internet is {}.".format(["DOWN", "UP"][r]))
 
-    portTags = ["ACM0", "USB5", "USB6", "USB7", "USB8"]
+    timeCon = time.time()
+    r = connectToInternet(tries=2)
+    while r == 0 and time.time() - timeCon < 15:
+        time.sleep(1)
+        r = connectToInternet(tries=2)
+    if r == 0:
+        print("Restarting all USB Ports")
+        os.system("usbOFF")
+        time.sleep(3)
+        os.system("usbON")
+        time.sleep(5)
+        r = connectToInternet(tries=2)
+
+    print("... Internet is {}.".format(["DOWN", "UP"][r]))
+    logging.info("Connection time of {}s".format(time.time() - timeCon))
+
+    portTags = ["ACM0", "USB0", "USB1", "USB2", "USB3", "USB4", "USB5", "USB6", "USB7"]
     
     print("... Acquiring.")
+    time.sleep(2)
     timeAcq = time.time()
-    data = np.full(16, np.NaN)
+    data = np.full(4*8, np.NaN)
     nanoPorts = ["/dev/tty{}".format(t) for t in portTags]
     for port in nanoPorts:
         try:
-            s = Serial(port, baudrate=115200)
+            s = Serial(port, baudrate=115200, timeout=5)
             s.flushInput()
-
+            print("... Port {}".format(port))
             nanoId, raw = readData(ser=s, N=N)  # (N, 4)
             raw = np.mean(raw, axis=0)  # (4,)
             fillIdx = (nanoId - 1) * 4
@@ -139,8 +160,9 @@ if __name__ == "__main__":
 
             s.close()
         except Exception as e:
-            logging.info("Error with port {}".format(port))
+            logging.info("Error with port {} : {}".format(port, e))
             continue
+        time.sleep(1)
 
     dataFilePath = "data/PD_{}.txt".format(recTimeStamp)
     np.savetxt(os.path.join(directory, dataFilePath), data)
