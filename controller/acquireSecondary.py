@@ -10,6 +10,7 @@ from picamera import PiCamera
 from serial.tools import list_ports
 from http.client import HTTPConnection
 import traceback
+from paramiko.ssh_exception import NoValidConnectionsError
 
 time0 = time.time()
 directory = os.path.dirname(os.path.abspath(__file__))
@@ -28,43 +29,13 @@ Launched at startup
 - Send data and image to server over SSH
 """
 
-N = 20
+N = 100
 captureIntervals = 6
 
+logFilePath = "dataSecondary/log_{}.log".format(recTimeStamp)
+logging.basicConfig(level=logging.INFO, handlers=[logging.FileHandler(os.path.join(directory, logFilePath)), logging.StreamHandler()])
 
-logFilePath = "data/log_{}.log".format(recTimeStamp)
-logging.basicConfig(level=logging.INFO,
-                    handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
-                              logging.StreamHandler()])
-
-
-def print(s):
-    logging.info(s)
-
-
-def connectToInternet(tries=2):
-    try:
-        print("... Connecting.")
-
-        # Simple HEAD request to test internet connection.
-        conn = HTTPConnection("www.google.com", timeout=10)
-        try:
-            conn.request("HEAD", "/")
-            conn.close()
-            return 1
-        except Exception as e:
-            print("Error with HTTP Request: {}".format(e))
-            conn.close()
-            if tries > 1:
-                time.sleep(2)
-                return connectToInternet(tries=tries-1)
-            return 0
-    except Exception as e:
-        print("Error with 3G modem port: {}".format(e))
-        return 0
-
-
-def readData(ser, N) -> (int, list):
+def read_data(ser, N) -> (int, list):
     try:
         nanoID = None
         localData = []
@@ -82,98 +53,78 @@ def readData(ser, N) -> (int, list):
     except Exception as e:
         logging.info("Error reading data")
 
-
-def captureRequired(interval: int = 6):
-    countPath = os.path.join(directory, "data/count.txt")
-    with open(countPath, "r") as f:
-        count = int(f.readlines()[0])
-    with open(countPath, "w+") as f:
-        f.write(str(count+1) + "\n")
-    if count % interval == 0:
-        return True
-    return False
-
-
-def capture(filepath):
-    camera = PiCamera()
-    camera.capture(filepath)
-
-
-# public 24.201.18.112, lan 192.168.0.188 
-def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
-    # logging.info("SERVER SKIP!")
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.load_host_keys(os.path.expanduser(os.path.join("/home", "pi", ".ssh", "known_hosts")))
-        ssh.connect(server, username=username)
-        sftp = ssh.open_sftp()
-        sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
-        sftp.close()
-        ssh.close()
-    except Exception as e:
-        logging.info("Cannot connect to server for {} : {}".format(filepath, type(e).__name__))
-        logging.info(traceback.format_exc())
+def copy_to_main(filepath, server="main.local", username="pi", mdp="projetneige2020"):
+#def copy_to_main(filepath, server="169.254.219.87", username="marc-andrevigneault", mdp="Bonjour1!"):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    #ssh.load_host_keys(os.path.expanduser(os.path.join("/home", "pi", ".ssh", "known_hosts")))
+    ssh.connect(server, username=username, password=mdp, timeout=20)
+    sftp = ssh.open_sftp()
+    #  /home/pi/Documents/projetNeige/controller"
+    sftp.put(os.path.join(directory, filepath), os.path.join("/home/pi/Documents/projetNeige/controller", filepath))
+    #sftp.put(os.path.join(directory, filepath), os.path.join("/Users/marc-andrevigneault/Documents/Github/DCCLAB/projetNeige/controller", filepath))
+    sftp.close()
+    ssh.close()
+    #except Exception as e:
+        #logging.info("Cannot connect to Main RPi for {} : {}".format(filepath, type(e).__name__))
+        #logging.info(traceback.format_exec())
 
 if __name__ == "__main__":
-    time.sleep(5)
-
     ports = [e.device for e in list_ports.comports() if "USB" in e.device]
-    print("Available ports: {}".format(ports))
-
-    timeCon = time.time()
-    r = connectToInternet(tries=2)
-    while r == 0 and time.time() - timeCon < 10:
-        time.sleep(1)
-        r = connectToInternet(tries=2)
-
-    print("... Internet is {}.".format(["DOWN", "UP"][r]))
-    logging.info("Connection time of {}s".format(time.time() - timeCon))
-    
-    print("... Acquiring.")
-    time.sleep(2)
+    logging.info("Available ports: {}".format(ports))
+    logging.info("... Acquiring.")
     timeAcq = time.time()
     data = np.full(4*8, np.NaN)
+
     for port in ports:
         try:
-            s = Serial(port, baudrate=115200, timeout=5)
+            timeNano0 = time.time()
+            s = Serial(port, baudrate=115200, timeout=3)
             s.flushInput()
-            print("... Port {}".format(port))
-            nanoId, raw = readData(ser=s, N=N)  # (N, 4)
+            logging.info("... Port {}".format(port))
+            nanoId, raw = read_data(ser=s, N=N)  # (N, 4)
             raw = np.mean(raw, axis=0)  # (4,)
             fillIdx = (nanoId - 1) * 4
             data[fillIdx: fillIdx+4] = raw
-
             s.close()
+            timeNano1 = time.time()
+            logging.info("Acquisition time on '{}' of {}s".format(str(port), (timeNano1-timeNano0)))
+
         except Exception as e:
             logging.info("Error with port {} : {}".format(port, e))
             continue
-        time.sleep(1)
 
-    dataFilePath = "data/PD_{}.txt".format(recTimeStamp)
+    dataFilePath = "dataSecondary/PD_{}.txt".format(recTimeStamp)
     np.savetxt(os.path.join(directory, dataFilePath), data)
 
     logging.info("Acquistion time of {}s, data shape {}".format(time.time() - timeAcq, data.shape))
+    logging.info("... Saved to disk.")
 
-    print("... Saved to disk.")
+    # Transfer to Main RPi
 
-    copyToServer(dataFilePath)
-    print("... Data saved to server.")
-    
-    if captureRequired(interval=captureIntervals):
-        try:
-            imageFilePath = "data/image_{}.jpg".format(recTimeStamp)
-            capture(os.path.join(directory, imageFilePath))
-            copyToServer(imageFilePath)
-            print("... Image saved to server.")
-        except Exception as e:
-            logging.info("Camera is not available!")
-    
-    print("Acquisition successful. ")
-
-    logging.info("Total elapsed time = {}s".format(time.time() - time0))
-
-    copyToServer(logFilePath)
-
+    SSHRetry = 3
+    failed = True
+    for i in range(SSHRetry):
+        logging.info("TRANSFER INITIALIZATION - TRY#{}".format(i))
+        if failed:
+            try:
+                dataTransferTime0 = time.time()
+                copy_to_main(dataFilePath)
+                logging.info("data transfer time: {}s".format(time.time()-dataTransferTime0))
+                logging.info("... Data saved to server.")
+                logTransferTime0 = time.time()
+                copy_to_main(logFilePath)
+                logging.info("log transfer time: {}s".format(time.time()-logTransferTime0))
+                logging.info("Total elapsed time = {}s".format(time.time() - time0))
+                failed = False
+                logging.info("Sucessful SSH data transfer.")
+                break
+            except Exception as e:
+                logging.info("SSH connection has failed. Launching retry in 10 seconds.")
+                logging.info(e)
+                time.sleep(10)
+                failed = True
+                logging.info("Retrying...")
     # os.system("shutdown now")
+
 
