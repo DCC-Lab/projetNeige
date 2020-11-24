@@ -5,7 +5,6 @@ import logging
 import paramiko
 import numpy as np
 from serial import Serial
-from shutil import copyfile
 from datetime import datetime
 from picamera import PiCamera
 from serial.tools import list_ports
@@ -32,7 +31,7 @@ N = 20
 captureIntervals = 6
 
 
-logFilePath = "data/logMain_{}.log".format(recTimeStamp)
+logFilePath = "data/log_{}.log".format(recTimeStamp)
 logging.basicConfig(level=logging.INFO,
                     handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
                               logging.StreamHandler()])
@@ -127,60 +126,67 @@ if __name__ == "__main__":
 
     timeCon = time.time()
     r = connectToInternet(tries=2)
-    while r == 0 and time.time() - timeCon < 20:
+    while r == 0 and time.time() - timeCon < 10:
         time.sleep(1)
-        r = connectToInternet(tries=1)
+        r = connectToInternet(tries=2)
+    if r == 0:
+        print("Restarting all USB Ports")
+        os.system("usbOFF")
+        time.sleep(3)
+        os.system("usbON")
+        time.sleep(5)
+        r = connectToInternet(tries=3)
 
     print("... Internet is {}.".format(["DOWN", "UP"][r]))
     logging.info("Connection time of {}s".format(time.time() - timeCon))
+
+    portTags = ["ACM0", "USB5", "USB6", "USB7", "USB8", "USB9", "USB10", "USB11", "USB12"]
+    
+    print("... Acquiring.")
     time.sleep(2)
-
-    print("... Waiting for SecondaryPi's data.")
-
     timeAcq = time.time()
-    acqTimeOut = 60
-    fileDiff = []
-    with open(os.path.join(directory, "data/fileHistory.txt"), "r") as f:
-        pastFiles = [l.replace("\n", "") for l in f.readlines()]
-        print("pastFiles = {}".format(str(pastFiles)))
+    data = np.full(4*8, np.NaN)
+    nanoPorts = ["/dev/tty{}".format(t) for t in portTags]
+    for port in nanoPorts:
+        try:
+            s = Serial(port, baudrate=115200, timeout=5)
+            s.flushInput()
+            print("... Port {}".format(port))
+            nanoId, raw = readData(ser=s, N=N)  # (N, 4)
+            raw = np.mean(raw, axis=0)  # (4,)
+            fillIdx = (nanoId - 1) * 4
+            data[fillIdx: fillIdx+4] = raw
 
-    deltaAcq = 0
-    while len(fileDiff) == 0 and deltaAcq < acqTimeOut:
-        currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
-        fileDiff = [f for f in currentFiles if f not in pastFiles]
+            s.close()
+        except Exception as e:
+            logging.info("Error with port {} : {}".format(port, e))
+            continue
         time.sleep(1)
-        deltaAcq += 1
 
-    if len(fileDiff) == 0:
-        print("TIMEOUT ERROR for SecondaryPi's data")
-    else:
-        print("Received SecondaryPi's data in {}s".format(str(deltaAcq)))
-        if len(fileDiff) == 1:
-            time.sleep(6)
-            currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
-            fileDiff = [f for f in currentFiles if f not in pastFiles]
-        with open(os.path.join(directory, "data/fileHistory.txt"), "w+") as f:
-            f.write('\n'.join(currentFiles) + '\n')
-        for fileName in fileDiff:
-            sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
-            copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
-                     dst=os.path.join(directory, "data/{}".format(fileName)))
-            copyToServer("data/{}".format(fileName))
-        print("Data files ({}) sent to server".format(len(fileDiff)))
+    dataFilePath = "data/PD_{}.txt".format(recTimeStamp)
+    np.savetxt(os.path.join(directory, dataFilePath), data)
 
-    logging.info("Acquistion time of {}s".format(time.time() - timeAcq))
+    logging.info("Acquistion time of {}s, data shape {}".format(time.time() - timeAcq, data.shape))
 
+    print("... Saved to disk.")
+
+    copyToServer(dataFilePath)
+    print("... Data saved to server.")
+    
     if captureRequired(interval=captureIntervals):
         try:
             imageFilePath = "data/image_{}.jpg".format(recTimeStamp)
             capture(os.path.join(directory, imageFilePath))
             copyToServer(imageFilePath)
-            print("... Image sent to server.")
+            print("... Image saved to server.")
         except Exception as e:
             logging.info("Camera is not available!")
+    
+    print("Acquisition successful. ")
 
     logging.info("Total elapsed time = {}s".format(time.time() - time0))
 
     copyToServer(logFilePath)
 
     # os.system("shutdown now")
+
