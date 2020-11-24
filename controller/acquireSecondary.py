@@ -133,7 +133,7 @@ if __name__ == "__main__":
     print("... Acquiring.")
     time.sleep(2)
     timeAcq = time.time()
-    data = np.full(4*8, np.NaN)
+    data = np.full((4*8, 2), np.NaN)
     for port in ports:
         try:
             s = Serial(port, baudrate=115200, timeout=5)
@@ -141,8 +141,10 @@ if __name__ == "__main__":
             print("... Port {}".format(port))
             nanoId, raw = readData(ser=s, N=N)  # (N, 4)
             raw = np.mean(raw, axis=0)  # (4,)
+            rawStd = np.std(raw, axis=0)  # (4,)
             fillIdx = (nanoId - 1) * 4
-            data[fillIdx: fillIdx+4] = raw
+            data[fillIdx: fillIdx+4, 0] = raw
+            data[fillIdx: fillIdx+4, 1] = rawStd
 
             s.close()
         except Exception as e:
