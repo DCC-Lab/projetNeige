@@ -98,8 +98,10 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
         sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
         sftp.close()
         ssh.close()
+        return True
     except Exception as e:
         logging.info("Cannot connect to server for {} : {}".format(filepath, type(e).__name__))
+        return False
 
 
 if __name__ == "__main__":
@@ -145,13 +147,14 @@ if __name__ == "__main__":
             time.sleep(6)
             currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
             fileDiff = [f for f in currentFiles if f not in pastFiles]
-        with open(os.path.join(directory, "data/fileHistory.txt"), "w+") as f:
-            f.write('\n'.join(currentFiles) + '\n')
         for fileName in fileDiff:
             sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
             copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
                      dst=os.path.join(directory, "data/{}".format(fileName)))
-            copyToServer("data/{}".format(fileName))
+            if not copyToServer("data/{}".format(fileName)):
+                fileDiff.remove(fileName)
+        with open(os.path.join(directory, "data/fileHistory.txt"), "w+") as f:
+            f.write('\n'.join(currentFiles) + '\n')
         print("Data files ({}) sent to server".format(len(fileDiff)))
         autoShutdown = True
 
