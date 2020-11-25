@@ -125,7 +125,7 @@ if __name__ == "__main__":
     print("... Waiting for SecondaryPi's data.")
 
     timeAcq = time.time()
-    acqTimeOut = 5
+    acqTimeOut = 60
     fileDiff = []
     with open(os.path.join(directory, "data/fileHistory.txt"), "r") as f:
         pastFiles = [l.replace("\n", "") for l in f.readlines()]
