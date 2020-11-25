@@ -1,10 +1,10 @@
 import os
-import sys
 import time
 import logging
 import paramiko
-import numpy as np
+import subprocess
 from serial import Serial
+from shutil import copyfile
 from datetime import datetime
 from picamera import PiCamera
 from serial.tools import list_ports
@@ -15,23 +15,22 @@ directory = os.path.dirname(os.path.abspath(__file__))
 recTimeStamp = datetime.now().strftime("%y%m%d_%H%M")
 
 """
-RaspBerry Pi Acquisition Script
+RaspBerry Pi Main Acquisition Script
 Launched at startup
 
 - Check for Git updates (?)
 - Activate 3G modem
 - Wait for internet connection
-- For each COM, integrate signal for N points. Each COM corresponds to 4 PD.
-- Save data to file
+- Wait for Secondary Pi's data
 - Take picture if it's time to (interval check)
-- Send data and image to server over SSH
+- Send data, image and logs to server over SSH
+- Auto shutdown if no backdoor enabled
 """
 
-N = 20
 captureIntervals = 6
 
 
-logFilePath = "data/log_{}.log".format(recTimeStamp)
+logFilePath = "data/logMain_{}.log".format(recTimeStamp)
 logging.basicConfig(level=logging.INFO,
                     handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
                               logging.StreamHandler()])
@@ -67,34 +66,20 @@ def connectToInternet(tries=2):
         return 0
 
 
-def readData(ser, N) -> (int, list):
-    try:
-        nanoID = None
-        localData = []
-        while len(localData) != N:
-            line = ser.readline()
-            line = line[0:len(line)-2].decode("utf-8", errors='replace')
-            try:
-                vector = [float(e) for e in line.split(',')]
-                if len(vector) == 5:
-                    nanoID = int(vector[0])
-                    localData.append(vector[1:])
-            except ValueError:
-                continue
-        return nanoID, np.asarray(localData)
-    except Exception as e:
-        logging.info("Error reading data")
-
-
-def captureRequired(interval: int = 6):
+def getLaunchCount():
     countPath = os.path.join(directory, "data/count.txt")
     with open(countPath, "r") as f:
         count = int(f.readlines()[0])
     with open(countPath, "w+") as f:
         f.write(str(count+1) + "\n")
-    if count % interval == 0:
-        return True
-    return False
+    return count
+
+
+def backdoorState():
+    filePath = os.path.join(directory, "data/backdoor.txt")
+    with open(filePath, "r") as f:
+        state = int(f.readlines()[0])
+    return state
 
 
 def capture(filepath):
@@ -104,7 +89,6 @@ def capture(filepath):
 
 # public 24.201.18.112, lan 192.168.0.188 
 def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
-    # logging.info("SERVER SKIP!")
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -120,73 +104,80 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
 
 if __name__ == "__main__":
     time.sleep(5)
+    autoShutdown = False
 
     ports = [e.device for e in list_ports.comports()]
     print("Available ports: {}".format(ports))
 
     timeCon = time.time()
     r = connectToInternet(tries=2)
-    while r == 0 and time.time() - timeCon < 10:
+    while r == 0 and time.time() - timeCon < 20:
         time.sleep(1)
-        r = connectToInternet(tries=2)
-    if r == 0:
-        print("Restarting all USB Ports")
-        os.system("usbOFF")
-        time.sleep(3)
-        os.system("usbON")
-        time.sleep(5)
-        r = connectToInternet(tries=3)
+        r = connectToInternet(tries=1)
 
     print("... Internet is {}.".format(["DOWN", "UP"][r]))
+    if r == 1:
+        subprocess.Popen('ssh -N -R 2222:localhost:22 Alegria@24.201.18.112', shell=True, close_fds=True)
+        logging.info("Reverse Shell is Open")
     logging.info("Connection time of {}s".format(time.time() - timeCon))
-
-    portTags = ["ACM0", "USB5", "USB6", "USB7", "USB8", "USB9", "USB10", "USB11", "USB12"]
-    
-    print("... Acquiring.")
     time.sleep(2)
+
+    print("... Waiting for SecondaryPi's data.")
+
     timeAcq = time.time()
-    data = np.full(4*8, np.NaN)
-    nanoPorts = ["/dev/tty{}".format(t) for t in portTags]
-    for port in nanoPorts:
-        try:
-            s = Serial(port, baudrate=115200, timeout=5)
-            s.flushInput()
-            print("... Port {}".format(port))
-            nanoId, raw = readData(ser=s, N=N)  # (N, 4)
-            raw = np.mean(raw, axis=0)  # (4,)
-            fillIdx = (nanoId - 1) * 4
-            data[fillIdx: fillIdx+4] = raw
+    acqTimeOut = 5
+    fileDiff = []
+    with open(os.path.join(directory, "data/fileHistory.txt"), "r") as f:
+        pastFiles = [l.replace("\n", "") for l in f.readlines()]
 
-            s.close()
-        except Exception as e:
-            logging.info("Error with port {} : {}".format(port, e))
-            continue
+    deltaAcq = 0
+    while len(fileDiff) == 0 and deltaAcq < acqTimeOut:
+        currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
+        fileDiff = [f for f in currentFiles if f not in pastFiles]
         time.sleep(1)
+        deltaAcq += 1
 
-    dataFilePath = "data/PD_{}.txt".format(recTimeStamp)
-    np.savetxt(os.path.join(directory, dataFilePath), data)
+    if len(fileDiff) == 0:
+        print("TIMEOUT ERROR for SecondaryPi's data")
+    else:
+        print("Received SecondaryPi's data in {}s".format(str(deltaAcq)))
+        if len(fileDiff) == 1:
+            time.sleep(6)
+            currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
+            fileDiff = [f for f in currentFiles if f not in pastFiles]
+        with open(os.path.join(directory, "data/fileHistory.txt"), "w+") as f:
+            f.write('\n'.join(currentFiles) + '\n')
+        for fileName in fileDiff:
+            sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
+            copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
+                     dst=os.path.join(directory, "data/{}".format(fileName)))
+            copyToServer("data/{}".format(fileName))
+        print("Data files ({}) sent to server".format(len(fileDiff)))
+        autoShutdown = True
 
-    logging.info("Acquistion time of {}s, data shape {}".format(time.time() - timeAcq, data.shape))
+    logging.info("Acquistion time of {}s".format(time.time() - timeAcq))
 
-    print("... Saved to disk.")
-
-    copyToServer(dataFilePath)
-    print("... Data saved to server.")
-    
-    if captureRequired(interval=captureIntervals):
+    launchCount = getLaunchCount()
+    if launchCount % captureIntervals == 0:
         try:
             imageFilePath = "data/image_{}.jpg".format(recTimeStamp)
             capture(os.path.join(directory, imageFilePath))
             copyToServer(imageFilePath)
-            print("... Image saved to server.")
+            print("... Image sent to server.")
         except Exception as e:
             logging.info("Camera is not available!")
-    
-    print("Acquisition successful. ")
+
+    if backdoorState() == 1:
+        logging.info("Backdoor enabled")
+        autoShutdown = False
 
     logging.info("Total elapsed time = {}s".format(time.time() - time0))
+    if autoShutdown:
+        logging.info("Shutting down")
+    else:
+        logging.info("Not shutting down")
 
     copyToServer(logFilePath)
 
-    # os.system("shutdown now")
-
+    if autoShutdown:
+        os.system("sudo shutdown now")
