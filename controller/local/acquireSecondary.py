@@ -72,7 +72,7 @@ def acquireSensors(ports):
 
 
 def incrementLaunchCount():
-    countPath = os.path.join(directory, "data/count.txt")
+    countPath = os.path.join(directory, "dataSecondary/count.txt")
     with open(countPath, "r") as f:
         count = int(f.readlines()[0])
     with open(countPath, "w+") as f:
@@ -99,10 +99,10 @@ def appendMissingFiles(filePaths):
     saveMissingFiles(missingFiles)
 
 
-def waitForConnection(attempts=8):
+def waitForConnection(attempts=5):
     timeCon = time.time()
     for i in range(attempts):
-        logging.info("... Connecting to main - Try {}".format(i+1))
+        logging.info("... Connecting to main - Try {}/{}".format(i+1, attempts))
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -114,8 +114,8 @@ def waitForConnection(attempts=8):
             logging.info("SSH connection has failed.")
             if i < (attempts-1):
                 logging.info("Launching retry in 3 seconds.")
-            logging.info(e)
-            time.sleep(3)
+            logging.info(type(e).__name__, e)
+            time.sleep(5)
     return 0
 
 
