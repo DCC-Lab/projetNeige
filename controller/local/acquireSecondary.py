@@ -179,8 +179,9 @@ if __name__ == "__main__":
 
         appendMissingFiles([dataFilePath, logFilePath])
 
-        waitForConnection()
-        copyFilesToMain()
+        r = waitForConnection()
+        if r:
+            copyFilesToMain()
 
         if not np.isnan(data).any():
             autoShutDown = True
