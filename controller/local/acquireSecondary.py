@@ -101,20 +101,18 @@ def appendMissingFiles(filePaths):
 
 def waitForConnection(attempts=5):
     timeCon = time.time()
+    logging.info("... Connecting to primary.")
     for i in range(attempts):
-        logging.info("... Connecting to main - Try {}/{}".format(i+1, attempts))
+        logging.info("Try {}/{}".format(i+1, attempts))
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(SERVER, username=USER, password=PWD, timeout=20)
             ssh.close()
-            logging.info("Successful SSH Connection in {}s".format(round(time.time() - timeCon)))
+            logging.info("Connected in {}s".format(round(time.time() - timeCon)))
             return 1
         except Exception as e:
-            logging.info("SSH connection has failed.")
-            if i < (attempts-1):
-                logging.info("Launching retry in 3 seconds.")
-            logging.info(type(e).__name__, e)
+            logging.info("SSH failed : {}".format(type(e).__name__))
             time.sleep(5)
     return 0
 
