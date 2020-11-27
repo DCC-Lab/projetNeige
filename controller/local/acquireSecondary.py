@@ -163,8 +163,8 @@ if __name__ == "__main__":
 
     for _ in range(nbOfAcquisition):
         launchCount = incrementLaunchCount()
-        logFilePath = "dataSecondary/log_{}.log".format(launchCount)
-        logging.basicConfig(level=logging.INFO,
+        logFilePath = "dataSecondary/logSECOND_{}.log".format(launchCount)
+        logging.basicConfig(format='%(message)s', level=logging.INFO,
                             handlers=[logging.FileHandler(os.path.join(directory, logFilePath)), logging.StreamHandler()])
         logging.getLogger("paramiko").setLevel(logging.WARNING)
 

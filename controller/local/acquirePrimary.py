@@ -22,8 +22,8 @@ Launched at startup after main.py which opens 3G & Inverse SSH
 
 captureIntervals = 6
 
-logFilePath = "data/logPrimary_{}.log".format(recTimeStamp)
-logging.basicConfig(level=logging.INFO,
+logFilePath = "data/logMAIN_{}.log".format(recTimeStamp)
+logging.basicConfig(format='%(message)s', level=logging.INFO,
                     handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
                               logging.StreamHandler()])
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -65,7 +65,7 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
         sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
         sftp.close()
         ssh.close()
-        logging.info("Sent {}".format(filepath))
+        logging.info("Sent {}".format(filepath.split("/")[-1]))
         return True
     except Exception as e:
         logging.info("E.Send {} : {}".format(filepath, type(e).__name__))
@@ -73,7 +73,8 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
 
 
 def sendMissingLogs():
-    currentLogs = [f for f in list(os.walk(os.path.join(directory, "data")))[0][2] if "Primary" in f]
+    currentLogs = [f for f in list(os.walk(os.path.join(directory, 'data')))[0][2] if '.log' in f]
+    currentLogs = [f for f in currentLogs if 'SECOND' not in f]
 
     with open(os.path.join(directory, "data/logHistory.txt"), "r") as f:
         pastLogs = [l.replace("\n", "") for l in f.readlines()]

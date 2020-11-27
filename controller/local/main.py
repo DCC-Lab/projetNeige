@@ -23,8 +23,8 @@ directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Log file
 recTimeStamp = datetime.now().strftime("%y%m%d_%H%M")
-logFilePath = "data/logConnectPrimary_{}.log".format(recTimeStamp)
-logging.basicConfig(level=logging.INFO,
+logFilePath = "data/logCON_{}.log".format(recTimeStamp)
+logging.basicConfig(format='%(message)s', level=logging.INFO,
                     handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
                               logging.StreamHandler()])
 logging.getLogger("paramiko").setLevel(logging.WARNING)
