@@ -98,7 +98,7 @@ def appendMissingFiles(filePaths):
     saveMissingFiles(missingFiles)
 
 
-def waitForConnection(attempts=5):
+def waitForConnection(attempts=8):
     timeCon = time.time()
     logging.info(".Connect.")
     for i in range(attempts):
@@ -106,7 +106,7 @@ def waitForConnection(attempts=5):
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(SERVER, username=USER, password=PWD, timeout=20)
+            ssh.connect(SERVER, username=USER, password=PWD, timeout=10)
             ssh.close()
             logging.info("ConTime={}s".format(round(time.time() - timeCon)))
             return 1
