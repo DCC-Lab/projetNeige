@@ -75,10 +75,6 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
 def sendMissingLogs():
     currentLogs = [f for f in list(os.walk(os.path.join(directory, "data")))[0][2] if "Primary" in f]
 
-    # fixme: temporary for 1st launch; to remove:
-    with open(os.path.join(directory, "data/logHistory.txt"), "w+") as f:
-        f.write('\n'.join(currentLogs) + '\n')
-
     with open(os.path.join(directory, "data/logHistory.txt"), "r") as f:
         pastLogs = [l.replace("\n", "") for l in f.readlines()]
 
@@ -156,8 +152,6 @@ if __name__ == "__main__":
         logging.info("Stay")
 
     sendMissingLogs()
-
-    copyToServer(logFilePath)
 
     if autoShutdown:
         time.sleep(10)

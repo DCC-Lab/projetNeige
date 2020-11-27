@@ -31,8 +31,8 @@ logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 
 def connectToInternet(tries=2):
+    logging.info(".Connect.")
     try:
-        logging.info(".Connect.")
         # Activate 3G modem (it is deactivated when it loses power)
         s = Serial("/dev/ttyUSB2", baudrate=115200, timeout=10)
         s.write("""AT#ECM=1,0,"","",0\r""".encode())
