@@ -8,6 +8,6 @@ void setup() {
 }
 
 void loop() {
-  Serial.println(String(uniqueID) + ',' + String(c) + ',' + String(c*2) + ',' + String(c*3) + ',' + String(c*4));
+  Serial.println(String(uniqueID) + ',' + String(c) + ',' + String(c*2) + ',' + String(c*3) + ',' + String(c*4) + ',' + String(25) + ',' + String(65));
   c = (c + 1) % 100;
 }

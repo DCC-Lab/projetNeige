@@ -35,7 +35,7 @@ def readData(ser, N) -> (int, list):
             line = line[0:len(line)-2].decode("utf-8", errors='replace')
             try:
                 vector = [float(e) for e in line.split(',')]
-                if len(vector) == 5:
+                if len(vector) == 7:
                     nanoID = int(vector[0])
                     localData.append(vector[1:])
             except ValueError:
@@ -48,7 +48,7 @@ def readData(ser, N) -> (int, list):
 def acquireSensors(ports):
     logging.info("... Acquiring.")
     timeAcq = time.time()
-    data = np.full((4*8, 2), np.NaN)
+    data = np.full((6*8, 2), np.NaN)
     for port in ports:
         try:
             logging.info("... Port {}".format(port))
@@ -58,9 +58,9 @@ def acquireSensors(ports):
             nanoId, raw = readData(ser=s, N=N)
             s.close()
 
-            fillIdx = (nanoId - 1) * 4
-            data[fillIdx: fillIdx+4, 0] = np.mean(raw, axis=0)
-            data[fillIdx: fillIdx+4, 1] = np.std(raw, axis=0)
+            fillIdx = (nanoId - 1) * 6
+            data[fillIdx: fillIdx+6, 0] = np.mean(raw, axis=0)
+            data[fillIdx: fillIdx+6, 1] = np.std(raw, axis=0)
             logging.info("Acquisition time on '{}' of {}s".format(str(port), round(time.time()-timeSensor, 2)))
 
         except Exception as e:
@@ -84,13 +84,13 @@ def loadMissingFiles():
     fileDiffPath = os.path.join(directory, "dataSecondary/fileDiff.txt")
     with open(fileDiffPath, "r") as f:
         fileDiff = [l.replace("\n", "") for l in f.readlines()]
-    return fileDiff
+    return [f for f in fileDiff if f]
 
 
 def saveMissingFiles(fileDiff: list):
     fileDiffPath = os.path.join(directory, "dataSecondary/fileDiff.txt")
     with open(os.path.join(directory, fileDiffPath), "w+") as f:
-        f.write('\n'.join(fileDiff) + '\n')
+        f.write('\n'.join(fileDiff))
 
 
 def appendMissingFiles(filePaths):
