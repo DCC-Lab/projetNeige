@@ -42,16 +42,16 @@ def readData(ser, N) -> (int, list):
                 continue
         return nanoID, np.asarray(localData)
     except Exception as e:
-        logging.info("Error reading data: {}".format(e))
+        logging.info("E.read: {}".format(type(e).__name__))
 
 
 def acquireSensors(ports):
-    logging.info("... Acquiring.")
+    logging.info(".Acq.")
     timeAcq = time.time()
     data = np.full((6*8, 2), np.NaN)
     for port in ports:
         try:
-            logging.info("... Port {}".format(port))
+            logging.info(".P={}".format(port))
             timeSensor = time.time()
             s = Serial(port, baudrate=115200, timeout=3)
             s.flushInput()
@@ -59,15 +59,14 @@ def acquireSensors(ports):
             s.close()
 
             fillIdx = (nanoId - 1) * 6
-            data[fillIdx: fillIdx+6, 0] = np.mean(raw, axis=0)
-            data[fillIdx: fillIdx+6, 1] = np.std(raw, axis=0)
-            logging.info("Acquisition time on '{}' of {}s".format(str(port), round(time.time()-timeSensor, 2)))
+            data[fillIdx: fillIdx+6, 0] = np.mean(raw, axis=0).round(2)
+            data[fillIdx: fillIdx+6, 1] = np.std(raw, axis=0).round(2)
+            logging.info("AcqT.{}={}s".format(str(port), round(time.time()-timeSensor, 2)))
 
         except Exception as e:
-            logging.info("Error with port {} : {}".format(port, e))
+            logging.info("E.port {} : {}".format(port, e))
             continue
-    logging.info("Acquistion time of {}s with {} missing values.".format(round(time.time() - timeAcq),
-                                                                         np.isnan(data).sum()))
+    logging.info("AcqT = {}s ({} NaN)".format(round(time.time() - timeAcq), np.isnan(data).sum()))
     return data
 
 
