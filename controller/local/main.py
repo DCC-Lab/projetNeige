@@ -30,13 +30,13 @@ logging.basicConfig(format='%(message)s', level=logging.INFO,
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 
-def connectToInternet(tries=2):
-    logging.info(".Connect.")
+def connectToInternet(tries=1):
     try:
         # Activate 3G modem (it is deactivated when it loses power)
         s = Serial("/dev/ttyUSB2", baudrate=115200, timeout=10)
         s.write("""AT#ECM=1,0,"","",0\r""".encode())
         s.close()
+        time.sleep(2)
 
         # Tiny HEAD request to test internet connection.
         conn = HTTPConnection("www.google.com", timeout=10)
@@ -48,7 +48,6 @@ def connectToInternet(tries=2):
             logging.info("E.HTTP: {}".format(type(e).__name__))
             conn.close()
             if tries > 1:
-                time.sleep(2)
                 return connectToInternet(tries=tries-1)
             return 0
     except Exception as e:
@@ -57,19 +56,17 @@ def connectToInternet(tries=2):
 
 
 if __name__ == '__main__':
-    time.sleep(2)
+    logging.info(".Connect.")
     timeCon = time.time()
-    r = connectToInternet(tries=2)
-    while r == 0 and time.time() - timeCon < 20:
-        time.sleep(1)
-        r = connectToInternet(tries=1)
+    r = 0
+    while r == 0 and time.time() - timeCon < 30:
+        r = connectToInternet()
 
     logging.info("Web {}".format(["DOWN", "UP"][r]))
     if r == 1:
         subprocess.Popen('ssh -N -R 2222:localhost:22 Alegria@24.201.18.112', shell=True, close_fds=True)
         logging.info("RSSH Open")
     logging.info("ConTime={}s".format(time.time() - timeCon))
-    time.sleep(5)
 
     # Launch acquisition script (Not imported to avoid compile errors)
     acquireFilePath = os.path.join(directory, "local/acquirePrimary.py")
