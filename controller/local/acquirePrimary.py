@@ -65,10 +65,10 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
         sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
         sftp.close()
         ssh.close()
-        logging.info("Sent {} to server".format(filepath))
+        logging.info("Sent {}".format(filepath))
         return True
     except Exception as e:
-        logging.info("Cannot connect to server for {} : {}".format(filepath, type(e).__name__))
+        logging.info("E.Send {} : {}".format(filepath, type(e).__name__))
         return False
 
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     autoShutdown = False
     launchCount = getLaunchCount()
 
-    print("... Waiting for SecondaryPi's data.")
+    print(".Listening.")
 
     timeAcq = time.time()
     acqTimeOut = 60
@@ -113,13 +113,15 @@ if __name__ == "__main__":
         deltaAcq += 1
 
     if len(fileDiff) == 0:
-        print("TIMEOUT ERROR for SecondaryPi's data")
+        print("E.Timeout")
     else:
-        print("Received SecondaryPi's data in {}s".format(str(deltaAcq)))
+        print("ListenTime={}s".format(str(deltaAcq)))
         if len(fileDiff) == 1:
             time.sleep(8)
             currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
             fileDiff = [f for f in currentFiles if f not in pastFiles]
+
+        print(".Sending {}: {}".format(len(fileDiff), fileDiff))
         for fileName in fileDiff:
             sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
             copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
@@ -130,29 +132,28 @@ if __name__ == "__main__":
                 os.remove(sourcePath)
         with open(os.path.join(directory, "data/fileHistory.txt"), "w+") as f:
             f.write('\n'.join(currentFiles) + '\n')
-        print("Data files ({}) sent to server: {}".format(len(fileDiff), fileDiff))
         autoShutdown = True
 
-    logging.info("Acquistion time of {}s".format(time.time() - timeAcq))
+    logging.info("AcqTime={}s".format(time.time() - timeAcq))
 
     if launchCount % captureIntervals == 0:
         try:
             imageFilePath = "data/image_{}.jpg".format(recTimeStamp)
             capture(os.path.join(directory, imageFilePath))
             copyToServer(imageFilePath)
-            print("... Image sent to server.")
+            print("Sent image")
         except Exception as e:
-            logging.info("Camera is not available!")
+            logging.info("E.Cam: {}".format(type(e).__name__))
 
     if backdoorState() == 1:
-        logging.info("Backdoor enabled")
+        logging.info("BD UP")
         autoShutdown = False
 
-    logging.info("Total elapsed time = {}s".format(time.time() - time0))
+    logging.info("TotTime={}s".format(time.time() - time0))
     if autoShutdown:
-        logging.info("Shutting down")
+        logging.info("Shutdown")
     else:
-        logging.info("Not shutting down")
+        logging.info("Stay")
 
     sendMissingLogs()
 

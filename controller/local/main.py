@@ -32,7 +32,7 @@ logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 def connectToInternet(tries=2):
     try:
-        logging.info("... Connecting.")
+        logging.info(".Connect.")
         # Activate 3G modem (it is deactivated when it loses power)
         s = Serial("/dev/ttyUSB2", baudrate=115200, timeout=10)
         s.write("""AT#ECM=1,0,"","",0\r""".encode())
@@ -45,14 +45,14 @@ def connectToInternet(tries=2):
             conn.close()
             return 1
         except Exception as e:
-            logging.info("Error with HTTP Request: {}".format(e))
+            logging.info("E.HTTP: {}".format(type(e).__name__))
             conn.close()
             if tries > 1:
                 time.sleep(2)
                 return connectToInternet(tries=tries-1)
             return 0
     except Exception as e:
-        logging.info("Error with 3G modem port: {}".format(e))
+        logging.info("E.3G: {}".format(type(e).__name__))
         return 0
 
 
@@ -64,11 +64,11 @@ if __name__ == '__main__':
         time.sleep(1)
         r = connectToInternet(tries=1)
 
-    logging.info("Internet is {}.".format(["DOWN", "UP"][r]))
+    logging.info("Web {}".format(["DOWN", "UP"][r]))
     if r == 1:
         subprocess.Popen('ssh -N -R 2222:localhost:22 Alegria@24.201.18.112', shell=True, close_fds=True)
-        logging.info("Reverse Shell is Open")
-    logging.info("Connection time of {}s".format(time.time() - timeCon))
+        logging.info("RSSH Open")
+    logging.info("ConTime={}s".format(time.time() - timeCon))
     time.sleep(5)
 
     # Launch acquisition script (Not imported to avoid compile errors)

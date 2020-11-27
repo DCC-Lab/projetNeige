@@ -100,7 +100,7 @@ def appendMissingFiles(filePaths):
 
 def waitForConnection(attempts=5):
     timeCon = time.time()
-    logging.info("... Connecting to primary.")
+    logging.info(".Connect.")
     for i in range(attempts):
         logging.info("Try {}/{}".format(i+1, attempts))
         try:
@@ -108,10 +108,10 @@ def waitForConnection(attempts=5):
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(SERVER, username=USER, password=PWD, timeout=20)
             ssh.close()
-            logging.info("Connected in {}s".format(round(time.time() - timeCon)))
+            logging.info("ConTime={}s".format(round(time.time() - timeCon)))
             return 1
         except Exception as e:
-            logging.info("SSH failed : {}".format(type(e).__name__))
+            logging.info("E.SSH: {}".format(type(e).__name__))
             time.sleep(5)
     return 0
 
@@ -127,13 +127,13 @@ def copyToMain(filepath):
         ssh.close()
         return True
     except Exception as e:
-        logging.info("Cannot connect to server for {} : {}".format(filepath, type(e).__name__))
+        logging.info("E.Send {} : {}".format(filepath, type(e).__name__))
         return False
 
 
 def copyFilesToMain():
     filesToSend = loadMissingFiles()
-    logging.info("Sending files to main ({}): {}".format(len(filesToSend), filesToSend))
+    logging.info("Sending {}: {}".format(len(filesToSend), [f.split("/")[-1] for f in filesToSend]))
 
     try:  # should always work since we already tested the connection
         ssh = paramiko.SSHClient()
@@ -141,18 +141,17 @@ def copyFilesToMain():
         ssh.connect(SERVER, username=USER, password=PWD, timeout=20)
         sftp = ssh.open_sftp()
     except Exception as e:
-        logging.info("Cannot init file transfer: {}".format(e))
+        logging.info("E.Transfer: {}".format(type(e).__name__))
         return
 
     newMissingFiles = []
     for filePath in filesToSend:
         if filePath == logFilePath:
-            logging.info("Total elapsed time = {}s".format(time.time() - time0))
-            logging.info("Successful SSH data transfer.")
+            logging.info("TotTime={}s".format(time.time() - time0))
         try:
             sftp.put(os.path.join(directory, filePath), os.path.join("/home/pi/Documents/projetNeige/controller", filePath))
         except Exception as e:
-            logging.info("Cannot send file {} : {}".format(filePath, e))
+            logging.info("E.Send {} : {}".format(filePath, type(e).__name__))
             newMissingFiles.append(filePath)
     saveMissingFiles(newMissingFiles)
     sftp.close()
@@ -170,13 +169,13 @@ if __name__ == "__main__":
         logging.getLogger("paramiko").setLevel(logging.WARNING)
 
         usbPorts = [e.device for e in list_ports.comports() if "USB" in e.device]
-        logging.info("Available ports: {}".format(usbPorts))
+        logging.info("{} Ports".format(len(usbPorts)))
 
         data = acquireSensors(usbPorts)
 
         dataFilePath = "dataSecondary/PD_{}.txt".format(launchCount)
         np.savetxt(os.path.join(directory, dataFilePath), data)
-        logging.info("Data saved to disk.")
+        logging.info("Data saved.")
 
         appendMissingFiles([dataFilePath, logFilePath])
 
