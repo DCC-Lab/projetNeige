@@ -145,11 +145,12 @@ def copyFilesToMain():
         return
 
     newMissingFiles = []
-    for filePath in filesToSend:
+    for i, filePath in enumerate(filesToSend):
         if filePath == logFilePath:
             logging.info("TotTime={}s".format(time.time() - time0))
         try:
             sftp.put(os.path.join(directory, filePath), os.path.join("/home/pi/Documents/projetNeige/controller", filePath))
+            logging.info("{}".format(i + 1))
         except Exception as e:
             logging.info("E.Send {} : {}".format(filePath, type(e).__name__))
             newMissingFiles.append(filePath)
