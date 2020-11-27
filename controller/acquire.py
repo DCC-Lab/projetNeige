@@ -98,15 +98,35 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
         sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
         sftp.close()
         ssh.close()
+        logging.info("Sent {} to server".format(filepath))
         return True
     except Exception as e:
         logging.info("Cannot connect to server for {} : {}".format(filepath, type(e).__name__))
         return False
 
 
+def sendMissingLogs():
+    currentLogs = [f for f in list(os.walk(os.path.join(directory, "data")))[0][2] if "logMain" in f]
+
+    # temp, to remove:
+    with open(os.path.join(directory, "data/logHistory.txt"), "w+") as f:
+        f.write('\n'.join(currentLogs) + '\n')
+
+    with open(os.path.join(directory, "data/logHistory.txt"), "r") as f:
+        pastLogs = [l.replace("\n", "") for l in f.readlines()]
+
+    logDiff = [f for f in currentLogs if f not in pastLogs]
+    for fileName in logDiff:
+        if not copyToServer("data/{}".format(fileName)):
+            currentLogs.remove(fileName)
+    with open(os.path.join(directory, "data/logHistory.txt"), "w+") as f:
+        f.write('\n'.join(currentLogs) + '\n')
+
+
 if __name__ == "__main__":
     time.sleep(5)
     autoShutdown = False
+    launchCount = getLaunchCount()
 
     ports = [e.device for e in list_ports.comports()]
     print("Available ports: {}".format(ports))
@@ -144,7 +164,7 @@ if __name__ == "__main__":
     else:
         print("Received SecondaryPi's data in {}s".format(str(deltaAcq)))
         if len(fileDiff) == 1:
-            time.sleep(6)
+            time.sleep(5)
             currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
             fileDiff = [f for f in currentFiles if f not in pastFiles]
         for fileName in fileDiff:
@@ -152,15 +172,16 @@ if __name__ == "__main__":
             copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
                      dst=os.path.join(directory, "data/{}".format(fileName)))
             if not copyToServer("data/{}".format(fileName)):
-                fileDiff.remove(fileName)
+                currentFiles.remove(fileName)
+            else:
+                os.remove(sourcePath)
         with open(os.path.join(directory, "data/fileHistory.txt"), "w+") as f:
             f.write('\n'.join(currentFiles) + '\n')
-        print("Data files ({}) sent to server".format(len(fileDiff)))
+        print("Data files ({}) sent to server: {}".format(len(fileDiff), fileDiff))
         autoShutdown = True
 
     logging.info("Acquistion time of {}s".format(time.time() - timeAcq))
 
-    launchCount = getLaunchCount()
     if launchCount % captureIntervals == 0:
         try:
             imageFilePath = "data/image_{}.jpg".format(recTimeStamp)
@@ -180,7 +201,10 @@ if __name__ == "__main__":
     else:
         logging.info("Not shutting down")
 
+    sendMissingLogs()
+
     copyToServer(logFilePath)
 
     if autoShutdown:
+        time.sleep(10)
         os.system("sudo shutdown now")
