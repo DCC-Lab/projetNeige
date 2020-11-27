@@ -6,9 +6,7 @@ from shutil import copyfile
 from datetime import datetime
 from picamera import PiCamera
 
-time0 = time.time()
 directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-recTimeStamp = datetime.now().strftime("%y%m%d_%H%M")
 
 """
 RaspBerry Pi Main Acquisition Script
@@ -16,21 +14,26 @@ Launched at startup after main.py which opens 3G & Inverse SSH
 
 - Wait for Secondary Pi's data
 - Take picture if it's time to (interval check)
-- Send data, image and logs to server over SSH
+- Send data, image and logs to SERVER over SSH
 - Auto shutdown if no backdoor enabled
 """
 
+nbOfAcquisition = 1
 captureIntervals = 6
 
-logFilePath = "data/logMAIN_{}.log".format(recTimeStamp)
-logging.basicConfig(format='%(message)s', level=logging.INFO,
-                    handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
-                              logging.StreamHandler()])
-logging.getLogger("paramiko").setLevel(logging.WARNING)
+SERVER = "24.201.18.112"
+USER = "Alegria"
 
 
 def print(s):
     logging.info(s)
+
+
+def setupLogger(filePath):
+    logging.basicConfig(format='%(message)s', level=logging.INFO,
+                        handlers=[logging.FileHandler(os.path.join(directory, filePath)),
+                                  logging.StreamHandler()])
+    logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 
 def getLaunchCount():
@@ -54,13 +57,52 @@ def capture(filepath):
     camera.capture(filepath)
 
 
+def loadPastFiles():
+    with open(os.path.join(directory, "settings/fileHistory.txt"), "r") as f:
+        files = [l.replace("\n", "") for l in f.readlines()]
+    return files
+
+
+def loadCurrentFiles():
+    return list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
+
+
+def listenForNewFiles(initialTimeOut=60, streamTimeOut=4):
+    print(".Listening.")
+    listenTime0 = time.time()
+    pastFiles = loadPastFiles()
+    newFiles = []
+
+    deltaAcq = 0
+    while len(newFiles) == 0 and deltaAcq < initialTimeOut:
+        newFiles = [f for f in loadCurrentFiles() if f not in pastFiles]
+        time.sleep(1)
+        deltaAcq += 1
+
+    if len(newFiles) == 0:
+        print("E.Timeout")
+        return
+
+    lastLength = 0
+    while len(newFiles) > lastLength:
+        lastLength = len(newFiles)
+        print("Stream_0: {} files".format(lastLength))
+        for i in range(10):
+            time.sleep(streamTimeOut/10)
+            newFiles = [f for f in loadCurrentFiles() if f not in pastFiles]
+            print("Stream_{}: {} files".format(i+1, len(newFiles)))
+    print("ListenTime={}s".format(round(time.time() - listenTime0)))
+
+    return newFiles
+
+
 # public 24.201.18.112, lan 192.168.0.188
-def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
+def copyToServer(filepath):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
-        ssh.connect(server, username=username)
+        ssh.connect(SERVER, username=USER)
         sftp = ssh.open_sftp()
         sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
         sftp.close()
@@ -71,8 +113,43 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
         return False
 
 
+def copySecondaryFilesToServer(files):
+    currentFiles = loadCurrentFiles()
+
+    print(".Sending {}: {}".format(len(files), files))
+
+    try:  # should always work since we already tested the connection
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
+        ssh.connect(SERVER, username=USER)
+        sftp = ssh.open_sftp()
+    except Exception as e:
+        logging.info("E.SSH: {}".format(type(e).__name__))
+        return
+
+    for i, fileName in enumerate(files):
+        sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
+        copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
+                 dst=os.path.join(directory, "data/{}".format(fileName)))
+        try:
+            sftp.put(os.path.join(directory, "data/{}".format(fileName)),
+                     os.path.join("/home/pi/Documents/projetNeige/controller", "data/{}".format(fileName)))
+            currentFiles.remove(fileName)
+            os.remove(sourcePath)
+            logging.info("Sent {}".format(i + 1))
+
+        except Exception as e:
+            logging.info("E.Send {} : {}".format(fileName, type(e).__name__))
+
+    with open(os.path.join(directory, "settings/fileHistory.txt"), "w+") as f:
+        f.write('\n'.join(currentFiles) + '\n')
+
+    sftp.close()
+    ssh.close()
+
+
 def sendMissingLogs():
-    # todo: replace with fileDiff system
     currentLogs = [f for f in list(os.walk(os.path.join(directory, 'data')))[0][2] if '.log' in f]
     currentLogs = [f for f in currentLogs if ('logMAIN' in f or 'logCON' in f)]
 
@@ -92,71 +169,38 @@ def sendMissingLogs():
 
 if __name__ == "__main__":
     autoShutdown = False
-    launchCount = getLaunchCount()
 
-    print(".Listening.")
+    for _ in range(nbOfAcquisition):
+        time0 = time.time()
+        recTimeStamp = datetime.now().strftime("%y%m%d_%H%M")
+        logFilePath = "data/logMAIN_{}.log".format(recTimeStamp)
 
-    timeAcq = time.time()
-    acqTimeOut = 60
-    fileDiff = []
-    with open(os.path.join(directory, "settings/fileHistory.txt"), "r") as f:
-        pastFiles = [l.replace("\n", "") for l in f.readlines()]
+        setupLogger(logFilePath)
+        launchCount = getLaunchCount()
 
-    # todo to enable continuous acquisition: wait additional seconds when new data is sent. then compress and send.
+        fileDiff = listenForNewFiles(initialTimeOut=60, streamTimeOut=5)
 
-    deltaAcq = 0
-    while len(fileDiff) == 0 and deltaAcq < acqTimeOut:
-        currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
-        fileDiff = [f for f in currentFiles if f not in pastFiles]
-        time.sleep(1)
-        deltaAcq += 1
+        copySecondaryFilesToServer(fileDiff)
 
-    if len(fileDiff) == 0:
-        print("E.Timeout")
-    else:
-        print("ListenTime={}s".format(str(deltaAcq)))
-        if len(fileDiff) == 1:
-            time.sleep(8)
-            currentFiles = list(os.walk(os.path.join(directory, "dataSecondary")))[0][2]
-            fileDiff = [f for f in currentFiles if f not in pastFiles]
+        if launchCount % captureIntervals == 0:
+            try:
+                imageFilePath = "data/image_{}.jpg".format(recTimeStamp)
+                capture(os.path.join(directory, imageFilePath))
+                copyToServer(imageFilePath)
+                print("Sent image")
+            except Exception as e:
+                logging.info("E.Cam: {}".format(type(e).__name__))
 
-        print(".Sending {}: {}".format(len(fileDiff), fileDiff))
-        for i, fileName in enumerate(fileDiff):
-            sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
-            copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
-                     dst=os.path.join(directory, "data/{}".format(fileName)))
-            if not copyToServer("data/{}".format(fileName)):  # todo: maybe sent all files within the same sftp session
-                currentFiles.remove(fileName)
-            else:
-                os.remove(sourcePath)
-                logging.info("Sent {}".format(i+1))
-        # todo: replace with fileDiff system
-        with open(os.path.join(directory, "settings/fileHistory.txt"), "w+") as f:
-            f.write('\n'.join(currentFiles) + '\n')
-        autoShutdown = True
+        if len(fileDiff) > 0:
+            autoShutdown = True
 
-    logging.info("AcqTime={}s".format(time.time() - timeAcq))
+        if backdoorState() == 1:
+            logging.info("BD UP")
+            autoShutdown = False
 
-    if launchCount % captureIntervals == 0:
-        try:
-            imageFilePath = "data/image_{}.jpg".format(recTimeStamp)
-            capture(os.path.join(directory, imageFilePath))
-            copyToServer(imageFilePath)
-            print("Sent image")
-        except Exception as e:
-            logging.info("E.Cam: {}".format(type(e).__name__))
+        logging.info("TotTime={}s, shutdown={}".format(round(time.time() - time0), autoShutdown))
 
-    if backdoorState() == 1:
-        logging.info("BD UP")
-        autoShutdown = False
-
-    logging.info("TotTime={}s".format(time.time() - time0))
-    if autoShutdown:
-        logging.info("Shutdown")
-    else:
-        logging.info("Stay")
-
-    sendMissingLogs()
+        sendMissingLogs()
 
     if autoShutdown:
         time.sleep(10)
