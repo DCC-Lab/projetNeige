@@ -22,7 +22,7 @@ Launched at startup after main.py which opens 3G & Inverse SSH
 
 captureIntervals = 6
 
-logFilePath = "data/logMain_{}.log".format(recTimeStamp)
+logFilePath = "data/logPrimary_{}.log".format(recTimeStamp)
 logging.basicConfig(level=logging.INFO,
                     handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
                               logging.StreamHandler()])
@@ -73,7 +73,7 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
 
 
 def sendMissingLogs():
-    currentLogs = [f for f in list(os.walk(os.path.join(directory, "data")))[0][2] if "logMain" in f]
+    currentLogs = [f for f in list(os.walk(os.path.join(directory, "data")))[0][2] if "Primary" in f]
 
     # fixme: temporary for 1st launch; to remove:
     with open(os.path.join(directory, "data/logHistory.txt"), "w+") as f:
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
             copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
                      dst=os.path.join(directory, "data/{}".format(fileName)))
-            if not copyToServer("data/{}".format(fileName)):
+            if not copyToServer("data/{}".format(fileName)):  # todo: maybe sent all files within the same sftp session
                 currentFiles.remove(fileName)
             else:
                 os.remove(sourcePath)
