@@ -26,6 +26,7 @@ logFilePath = "data/logMain_{}.log".format(recTimeStamp)
 logging.basicConfig(level=logging.INFO,
                     handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
                               logging.StreamHandler()])
+logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 
 def print(s):

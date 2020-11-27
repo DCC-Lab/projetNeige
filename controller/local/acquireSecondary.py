@@ -170,6 +170,7 @@ if __name__ == "__main__":
         logFilePath = "dataSecondary/log_{}.log".format(launchCount)
         logging.basicConfig(level=logging.INFO,
                             handlers=[logging.FileHandler(os.path.join(directory, logFilePath)), logging.StreamHandler()])
+        logging.getLogger("paramiko").setLevel(logging.WARNING)
 
         usbPorts = [e.device for e in list_ports.comports() if "USB" in e.device]
         logging.info("Available ports: {}".format(usbPorts))
