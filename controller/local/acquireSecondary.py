@@ -71,7 +71,7 @@ def acquireSensors(ports):
 
 
 def incrementLaunchCount():
-    countPath = os.path.join(directory, "dataSecondary/count.txt")
+    countPath = os.path.join(directory, "settings/count.txt")
     with open(countPath, "r") as f:
         count = int(f.readlines()[0])
     with open(countPath, "w+") as f:
@@ -80,14 +80,14 @@ def incrementLaunchCount():
 
 
 def loadMissingFiles():
-    fileDiffPath = os.path.join(directory, "dataSecondary/fileDiff.txt")
+    fileDiffPath = os.path.join(directory, "settings/fileDiff.txt")
     with open(fileDiffPath, "r") as f:
         fileDiff = [l.replace("\n", "") for l in f.readlines()]
     return [f for f in fileDiff if f]
 
 
 def saveMissingFiles(fileDiff: list):
-    fileDiffPath = os.path.join(directory, "dataSecondary/fileDiff.txt")
+    fileDiffPath = os.path.join(directory, "settings/fileDiff.txt")
     with open(os.path.join(directory, fileDiffPath), "w+") as f:
         f.write('\n'.join(fileDiff))
 

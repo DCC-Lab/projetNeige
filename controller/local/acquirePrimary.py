@@ -65,7 +65,6 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
         sftp.put(os.path.join(directory, filepath), os.path.join("C:/SnowOptics", filepath))
         sftp.close()
         ssh.close()
-        logging.info("Sent {}".format(filepath.split("/")[-1]))
         return True
     except Exception as e:
         logging.info("E.Send {} : {}".format(filepath, type(e).__name__))
@@ -75,21 +74,23 @@ def copyToServer(filepath, server="24.201.18.112", username="Alegria"):
 def sendMissingLogs():
     # todo: replace with fileDiff system
     currentLogs = [f for f in list(os.walk(os.path.join(directory, 'data')))[0][2] if '.log' in f]
-    currentLogs = [f for f in currentLogs if ('MAIN' in f or 'CON' in f)]
+    currentLogs = [f for f in currentLogs if ('logMAIN' in f or 'logCON' in f)]
 
     with open(os.path.join(directory, "settings/logHistory.txt"), "r") as f:
         pastLogs = [l.replace("\n", "") for l in f.readlines()]
 
     logDiff = [f for f in currentLogs if f not in pastLogs]
-    for fileName in logDiff:
+    print(".Sending {}: {}".format(len(logDiff), logDiff))
+    for i, fileName in enumerate(logDiff):
         if not copyToServer("data/{}".format(fileName)):
             currentLogs.remove(fileName)
+        else:
+            logging.info("Sent {}".format(i + 1))
     with open(os.path.join(directory, "settings/logHistory.txt"), "w+") as f:
         f.write('\n'.join(currentLogs) + '\n')
 
 
 if __name__ == "__main__":
-    time.sleep(5)
     autoShutdown = False
     launchCount = getLaunchCount()
 
@@ -120,7 +121,7 @@ if __name__ == "__main__":
             fileDiff = [f for f in currentFiles if f not in pastFiles]
 
         print(".Sending {}: {}".format(len(fileDiff), fileDiff))
-        for fileName in fileDiff:
+        for i, fileName in enumerate(fileDiff):
             sourcePath = os.path.join(directory, "dataSecondary/{}".format(fileName))
             copyfile(src=os.path.join(directory, "dataSecondary/{}".format(fileName)),
                      dst=os.path.join(directory, "data/{}".format(fileName)))
@@ -128,6 +129,7 @@ if __name__ == "__main__":
                 currentFiles.remove(fileName)
             else:
                 os.remove(sourcePath)
+                logging.info("Sent {}".format(i+1))
         # todo: replace with fileDiff system
         with open(os.path.join(directory, "settings/fileHistory.txt"), "w+") as f:
             f.write('\n'.join(currentFiles) + '\n')
