@@ -16,7 +16,8 @@ Launched at startup
 """
 
 N = 100
-nbOfAcquisition = 1
+nbOfAcquisition = 10
+TEST = True
 
 SERVER = "main.local"
 USER = "pi"
@@ -24,6 +25,20 @@ PWD = "projetneige2020"
 
 time0 = time.time()
 directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+logging.getLogger("paramiko").setLevel(logging.WARNING)
+
+
+def setupLogger(name, filePath, level=logging.INFO):
+    l = logging.getLogger(name)
+    formatter = logging.Formatter('%(message)s')
+    fileHandler = logging.FileHandler(os.path.join(directory, filePath), mode='w')
+    fileHandler.setFormatter(formatter)
+    streamHandler = logging.StreamHandler()
+    streamHandler.setFormatter(formatter)
+
+    l.setLevel(level)
+    l.addHandler(fileHandler)
+    l.addHandler(streamHandler)
 
 
 def readData(ser, N) -> (int, list):
@@ -42,16 +57,16 @@ def readData(ser, N) -> (int, list):
                 continue
         return nanoID, np.asarray(localData)
     except Exception as e:
-        logging.info("E.read: {}".format(type(e).__name__))
+        logger.info("E.read: {}".format(type(e).__name__))
 
 
 def acquireSensors(ports):
-    logging.info(".Acq.")
+    logger.info(".Acq.")
     timeAcq = time.time()
     data = np.full((6*8, 2), np.NaN)
-    for port in ports:
+    for i, port in enumerate(ports):
         try:
-            logging.info(".P={}".format(port))
+            logger.info("P{}".format(i+1))
             timeSensor = time.time()
             s = Serial(port, baudrate=115200, timeout=3)
             s.flushInput()
@@ -61,12 +76,12 @@ def acquireSensors(ports):
             fillIdx = (nanoId - 1) * 6
             data[fillIdx: fillIdx+6, 0] = np.mean(raw, axis=0).round(2)
             data[fillIdx: fillIdx+6, 1] = np.std(raw, axis=0).round(2)
-            logging.info("AcqT.{}={}s".format(str(port), round(time.time()-timeSensor, 2)))
+            logger.info("{}s".format(round(time.time()-timeSensor, 2)))
 
         except Exception as e:
-            logging.info("E.port {} : {}".format(port, e))
+            logger.info("E.port {} : {}".format(port, e))
             continue
-    logging.info("AcqT = {}s ({} NaN)".format(round(time.time() - timeAcq), np.isnan(data).sum()))
+    logger.info("AcqT = {}s ({} NaN)".format(round(time.time() - timeAcq), np.isnan(data).sum()))
     return data
 
 
@@ -98,21 +113,21 @@ def appendMissingFiles(filePaths):
     saveMissingFiles(missingFiles)
 
 
-def waitForConnection(attempts=8):
+def waitForConnection(attempts=20):
     timeCon = time.time()
-    logging.info(".Connect.")
+    logger.info(".Connect.")
     for i in range(attempts):
-        logging.info("Try {}/{}".format(i+1, attempts))
+        logger.info("{}/{}".format(i+1, attempts))
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(SERVER, username=USER, password=PWD, timeout=10)
             ssh.close()
-            logging.info("ConTime={}s".format(round(time.time() - timeCon)))
+            logger.info("ConT.={}s".format(round(time.time() - timeCon)))
             return 1
         except Exception as e:
-            logging.info("E.SSH: {}".format(type(e).__name__))
-            time.sleep(5)
+            logger.info("E.SSH: {}".format(type(e).__name__))
+            time.sleep(2)
     return 0
 
 
@@ -127,13 +142,13 @@ def copyToMain(filepath):
         ssh.close()
         return True
     except Exception as e:
-        logging.info("E.Send {} : {}".format(filepath, type(e).__name__))
+        logger.info("E.Send {} : {}".format(filepath, type(e).__name__))
         return False
 
 
 def copyFilesToMain():
     filesToSend = loadMissingFiles()
-    logging.info("Sending {}: {}".format(len(filesToSend), [f.split("/")[-1] for f in filesToSend]))
+    logger.info("Sending {}: {}".format(len(filesToSend), [f.split("/")[-1].split(".")[0] for f in filesToSend]))
 
     try:  # should always work since we already tested the connection
         ssh = paramiko.SSHClient()
@@ -141,18 +156,18 @@ def copyFilesToMain():
         ssh.connect(SERVER, username=USER, password=PWD, timeout=20)
         sftp = ssh.open_sftp()
     except Exception as e:
-        logging.info("E.Transfer: {}".format(type(e).__name__))
+        logger.info("E.Transfer: {}".format(type(e).__name__))
         return
 
     newMissingFiles = []
     for i, filePath in enumerate(filesToSend):
         if filePath == logFilePath:
-            logging.info("TotTime={}s".format(time.time() - time0))
+            logger.info("TT={}s".format(round(time.time() - time0)))
         try:
             sftp.put(os.path.join(directory, filePath), os.path.join("/home/pi/Documents/projetNeige/controller", filePath))
-            logging.info("{}".format(i + 1))
+            logger.info("{}".format(i + 1))
         except Exception as e:
-            logging.info("E.Send {} : {}".format(filePath, type(e).__name__))
+            logger.info("E.Send {} : {}".format(filePath, type(e).__name__))
             newMissingFiles.append(filePath)
     saveMissingFiles(newMissingFiles)
     sftp.close()
@@ -164,19 +179,20 @@ if __name__ == "__main__":
 
     for _ in range(nbOfAcquisition):
         launchCount = incrementLaunchCount()
-        logFilePath = "dataSecondary/logSECOND_{}.log".format(launchCount)
-        logging.basicConfig(format='%(message)s', level=logging.INFO,
-                            handlers=[logging.FileHandler(os.path.join(directory, logFilePath)), logging.StreamHandler()])
-        logging.getLogger("paramiko").setLevel(logging.WARNING)
+        logFilePath = "dataSecondary/SEC_{}.log".format(launchCount)
+
+        setupLogger(str(launchCount), logFilePath)
+        logger = logging.getLogger(str(launchCount))
 
         usbPorts = [e.device for e in list_ports.comports() if "USB" in e.device]
-        logging.info("{} Ports".format(len(usbPorts)))
+        if TEST:
+            usbPorts = ['/dev/ttyACM0'] * 8
+        logger.info("{} Ports".format(len(usbPorts)))
 
         data = acquireSensors(usbPorts)
 
         dataFilePath = "dataSecondary/PD_{}.txt".format(launchCount)
         np.savetxt(os.path.join(directory, dataFilePath), data)
-        logging.info("Data saved.")
 
         appendMissingFiles([dataFilePath, logFilePath])
 
