@@ -22,8 +22,8 @@ from http.client import HTTPConnection
 directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Log file
-recTimeStamp = datetime.now().strftime("%y%m%d_%H%M")
-logFilePath = "data/logCON_{}.log".format(recTimeStamp)
+recTimeStamp = datetime.now().strftime("%m%d%H%M")
+logFilePath = "data/CON_{}.log".format(recTimeStamp)
 logging.basicConfig(format='%(message)s', level=logging.INFO,
                     handlers=[logging.FileHandler(os.path.join(directory, logFilePath)),
                               logging.StreamHandler()])
@@ -65,8 +65,8 @@ if __name__ == '__main__':
     logging.info("Web {}".format(["DOWN", "UP"][r]))
     if r == 1:
         subprocess.Popen('ssh -N -R 2222:localhost:22 Alegria@24.201.18.112', shell=True, close_fds=True)
-        logging.info("RSSH Open")
-    logging.info("ConTime={}s".format(time.time() - timeCon))
+        logging.info("RS UP")
+    logging.info("T={}s".format(round(time.time() - timeCon)))
 
     # Launch acquisition script (Not imported to avoid compile errors)
     acquireFilePath = os.path.join(directory, "local/acquirePrimary.py")
