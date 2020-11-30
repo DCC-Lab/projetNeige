@@ -58,11 +58,3 @@ class DetectorUnitDataTranslator:
 if __name__ == "__main__":
     translator = DetectorUnitDataTranslator()
     ormList = translator.from_txt_to_orm("testData.txt")
-    print(ormList[0].__dict__)
-    print(ormList[1].__dict__)
-    print(ormList[2].__dict__)
-    print(ormList[3].__dict__)
-    print(ormList[4].__dict__)
-    print(ormList[5].__dict__)
-    print(ormList[6].__dict__)
-    print(ormList[7].__dict__)

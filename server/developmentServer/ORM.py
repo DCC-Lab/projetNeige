@@ -1,9 +1,9 @@
 import uuid
 from sqlalchemy import Column, String, Integer, Date, Time, DateTime, Float
-from sqlalchemy.ext.declarative import declarative_base
+from ORMBase import commonBase
 
 
-class DetectorUnitORM(declarative_base()):
+class DetectorUnitORM(commonBase):
     __tablename__ = "DetectorUnits"
     id = Column(String(36), primary_key=True)
     relatedClusterID = Column(String(36))
@@ -11,8 +11,8 @@ class DetectorUnitORM(declarative_base()):
     location = Column(String(36))
 
 
-class DetectorUnitDataORM(declarative_base()):
-    __tablename__ = "DetectorUnits"
+class DetectorUnitDataORM(commonBase):
+    __tablename__ = "DetectorUnitsData"
     id = Column(String(36), primary_key=True)
     unitID = Column(String(36))
     relatedClusterName = Column(String(36))
@@ -30,7 +30,8 @@ class DetectorUnitDataORM(declarative_base()):
     humidityMean = Column(Float)
     humiditySd = Column(Float)
 
-class PhotodiodeDataORM(declarative_base()):
+
+class PhotodiodeDataORM(commonBase):
     __tablename__ = "PhotodiodeData"
     dataID = Column(String(36), primary_key=True)
     photodiodeID = Column(Integer)
@@ -41,8 +42,7 @@ class PhotodiodeDataORM(declarative_base()):
     timeStamp = Column(DateTime)
     DigitalNumberMean = Column(Integer)
     DigitalNumberSd = Column(Integer)
-
-    correctedValue = Column(String)
+    correctedValue = Column(String(36))
 
 
 if __name__ == '__main__':
