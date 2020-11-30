@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from DatabaseConfigs import localhost_database_config
 from Translator import DetectorUnitDataTranslator
+from sqlalchemy.ext.declarative import declarative_base
 
 
 class DatabaseClient:
@@ -15,6 +16,9 @@ class DatabaseClient:
                                                                                 self.db_config.database))
         self.logger = logging.getLogger("Monitor_DB")
         self.translator = DetectorUnitDataTranslator()
+
+    def init_tables(self):
+        declarative_base().metadata.create_all(bind=self.engine)
 
     def make_session(self):
         self.session = sessionmaker(bind=self.engine)()
@@ -33,5 +37,6 @@ class DatabaseClient:
 
 if __name__ == '__main__':
     dbc = DatabaseClient()
+    dbc.init_tables()
     dbc.insert_photodiode_data("testData.txt")
 
