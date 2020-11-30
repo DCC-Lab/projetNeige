@@ -30,6 +30,5 @@ class DatabaseClient:
 
 
 if __name__ == '__main__':
-    db_client = DatabaseClient()
-    data_dict = {}
-    db_client.insert_photodiode_data(data_dict)
+    pass
+
