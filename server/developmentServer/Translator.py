@@ -1,5 +1,4 @@
 import uuid
-from typing import Dict
 from ORM import PhotodiodeDataORM
 from ORM import DetectorUnitDataORM
 
@@ -51,7 +50,7 @@ class DetectorUnitDataTranslator:
                         translatedDict["humidityMean"] = statData[0]
                         translatedDict["humiditySd"] = statData[1]
 
-                ORMList.append(DetectorUnitDataORM(id=str(uuid.uuid4()), **translatedDict))
+                ORMList.append(DetectorUnitDataORM(id=str(uuid.uuid4()), **translatedDict, timeStamp="1900-02-11 01:01:01"))
 
             return ORMList
 
@@ -62,3 +61,8 @@ if __name__ == "__main__":
     print(ormList[0].__dict__)
     print(ormList[1].__dict__)
     print(ormList[2].__dict__)
+    print(ormList[3].__dict__)
+    print(ormList[4].__dict__)
+    print(ormList[5].__dict__)
+    print(ormList[6].__dict__)
+    print(ormList[7].__dict__)

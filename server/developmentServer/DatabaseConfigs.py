@@ -1,4 +1,4 @@
-from .DatabaseConfigModel import DatabaseConfigModel
+from DatabaseConfigModel import DatabaseConfigModel
 
 localhost_database_config = DatabaseConfigModel("localhost", 32000, "projetneigedb", "projetNeige", "pn2020")
 internal_databse_config = DatabaseConfigModel("192.168.2.28", 32000, "projetneigedb", "projetNeige", "pn2020")
