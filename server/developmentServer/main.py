@@ -7,6 +7,8 @@ from DatabaseConfigs import remote_database_config
 from DatabaseClient import DatabaseClient
 import time
 
+TAGS = ["PD_"]
+
 
 def loadPastFiles():
     with open(os.path.join(dbDir, "fileHistory.txt"), "r") as f:
@@ -20,7 +22,7 @@ def setPastFiles(files: list):
 
 
 def loadCurrentFiles():
-    return list(os.walk(serverDir))[0][2]
+    return [f for f in list(os.walk(serverDir))[0][2] if any(tag in f for tag in TAGS)]
 
 
 def listenForNewFiles(intervalInSeconds=5):
