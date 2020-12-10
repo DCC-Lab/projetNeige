@@ -25,10 +25,10 @@ class DatabaseClient:
     def make_session(self):
         self.session = sessionmaker(bind=self.engine)()
 
-    def insert_photodiode_data(self, dataFilePath):
+    def insert_photodiode_data(self, dataFilePath, timeStamp):
         try:
             self.make_session()
-            ormList = self.translator.from_txt_to_orm(dataFilePath)
+            ormList = self.translator.from_txt_to_orm(dataFilePath, timeStamp)
             for data in ormList:
                 self.session.add(data)
             self.session.commit()
