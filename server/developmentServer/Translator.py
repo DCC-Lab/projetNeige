@@ -1,4 +1,6 @@
 import uuid
+import pathlib
+import datetime
 from ORM import DetectorUnitDataORM
 
 
@@ -6,6 +8,9 @@ class DetectorUnitDataTranslator:
 
     def from_txt_to_orm(self, filePath):
         ORMList = []
+
+        fileTime = datetime.datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
+        timeString = fileTime.strftime("%Y-%m-%d %H:%M:%S")
 
         with open(filePath, 'r') as f:
             rawData = [line.rstrip().split(sep=" ") for line in f]
@@ -31,7 +36,7 @@ class DetectorUnitDataTranslator:
                         translatedDict["humidityMean"] = statData[0]
                         translatedDict["humiditySd"] = statData[1]
 
-                ORMList.append(DetectorUnitDataORM(id=str(uuid.uuid4()), **translatedDict, timeStamp="1900-02-11 01:01:01"))
+                ORMList.append(DetectorUnitDataORM(id=str(uuid.uuid4()), **translatedDict, timeStamp=timeString))
 
             return ORMList
 
