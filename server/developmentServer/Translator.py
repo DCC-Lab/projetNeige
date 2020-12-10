@@ -1,24 +1,5 @@
 import uuid
-from ORM import PhotodiodeDataORM
 from ORM import DetectorUnitDataORM
-
-
-class PhotodiodeDataTranslator:
-    @staticmethod
-    def from_data_to_orm(raw_data) -> PhotodiodeDataORM:
-        translated_dict = raw_data
-        return PhotodiodeDataORM(id=str(uuid.uuid4()), **translated_dict)
-
-    def from_txt_to_orm(self, filePath):
-        translatedDict = {}
-        with open(filePath, 'r') as f:
-            rawData = [line.rstrip() for line in f]
-            rawData = [rawData[i:i+7] for i in range(0, len(rawData), 7)]
-            for i, unitRawData in enumerate(rawData):
-                for j, statData in enumerate(unitRawData):
-
-                    translatedDict["photodiodeID"] = f"{i}"
-            return PhotodiodeDataORM(id=str(uuid.uuid4()), **translatedDict)
 
 
 class DetectorUnitDataTranslator:

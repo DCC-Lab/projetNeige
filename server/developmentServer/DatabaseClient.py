@@ -2,14 +2,15 @@ import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from DatabaseConfigs import localhost_database_config
+from DatabaseConfigs import remote_database_config
 from Translator import DetectorUnitDataTranslator
 from ORMBase import commonBase
 
 
 class DatabaseClient:
-    def __init__(self):
+    def __init__(self, config=localhost_database_config):
         self.session = None
-        self.db_config = localhost_database_config
+        self.db_config = config
         self.engine = create_engine("mysql+pymysql://{}:{}@{}/{}".format(self.db_config.user,
                                                                          self.db_config.password,
                                                                          self.db_config.server_host,
@@ -37,6 +38,6 @@ class DatabaseClient:
 
 
 if __name__ == '__main__':
-    dbc = DatabaseClient()
+    dbc = DatabaseClient(config=remote_database_config)
     dbc.init_tables()
     dbc.insert_photodiode_data("testData.txt")
