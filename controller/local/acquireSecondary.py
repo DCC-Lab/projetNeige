@@ -16,8 +16,8 @@ Launched at startup
 """
 
 N = 100
-nbOfAcquisition = 10
-TEST = True
+nbOfAcquisition = 100  # max
+TEST = False
 
 SERVER = "main.local"
 USER = "pi"
@@ -79,7 +79,7 @@ def acquireSensors(ports):
             logger.info("{}s".format(round(time.time()-timeSensor, 2)))
 
         except Exception as e:
-            logger.info("E.port {} : {}".format(port, e))
+            logger.info("E {} : {}".format(port, type(e).__name__))
             continue
     logger.info("AcqT = {}s ({} NaN)".format(round(time.time() - timeAcq), np.isnan(data).sum()))
     return data
@@ -187,12 +187,12 @@ if __name__ == "__main__":
         usbPorts = [e.device for e in list_ports.comports() if "USB" in e.device]
         if TEST:
             usbPorts = ['/dev/ttyACM0'] * 8
-        logger.info("{} Ports".format(len(usbPorts)))
+        logger.info("{}P".format(len(usbPorts)))
 
         data = acquireSensors(usbPorts)
 
         dataFilePath = "dataSecondary/PD_{}.txt".format(launchCount)
-        np.savetxt(os.path.join(directory, dataFilePath), data)
+        np.savetxt(os.path.join(directory, dataFilePath), data, fmt="%.2f")
 
         appendMissingFiles([dataFilePath, logFilePath])
 
