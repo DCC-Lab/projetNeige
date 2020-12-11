@@ -41,6 +41,7 @@ class DetectorUnitDataTranslator:
             return ORMList
 
 
+
 if __name__ == "__main__":
     translator = DetectorUnitDataTranslator()
     ormList = translator.from_txt_to_orm("testData.txt")

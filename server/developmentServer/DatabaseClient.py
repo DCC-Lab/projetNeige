@@ -53,4 +53,3 @@ class DatabaseClient:
 if __name__ == '__main__':
     dbc = DatabaseClient(config=remote_database_config)
     dbc.init_tables()
-    dbc.insert_photodiode_data("testData.txt")
