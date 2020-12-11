@@ -30,19 +30,24 @@ def fileKey(filename: str):
     return int(filename.split(".")[0].split("_")[1])
 
 
-def listenForNewFiles(intervalInSeconds=2):
+def listenForNewFiles(intervalInSeconds=3):
     print("...listening")
     pastFiles = loadPastFiles()
-    newFiles = []
 
+    newFiles = []
     while len(newFiles) == 0:
         newFiles = [f for f in loadCurrentFiles() if f not in pastFiles]
         time.sleep(intervalInSeconds)
 
-    # This leaves a time window for additional files to be added after the first batch is detected
-    currentFiles = loadCurrentFiles()
-    newFiles = [f for f in currentFiles if f not in pastFiles]
-    print("Detected {} new files.".format(len(newFiles)))
+    # Time window for additional files to be added after the first batch is detected
+    deltaFiles = len(newFiles)
+    while deltaFiles != 0:
+        print("Detected {} new files.".format(deltaFiles))
+        currentFiles = loadCurrentFiles()
+        newFiles = [f for f in currentFiles if f not in pastFiles]
+        time.sleep(intervalInSeconds)
+        deltaFiles = len(newFiles) - deltaFiles
+
     return newFiles, currentFiles
 
 
