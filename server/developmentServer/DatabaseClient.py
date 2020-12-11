@@ -1,9 +1,11 @@
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Table
 from DatabaseConfigs import localhost_database_config
 from DatabaseConfigs import remote_database_config
 from Translator import DetectorUnitDataTranslator
+from ORM import DetectorUnitDataORM
 from ORMBase import commonBase
 
 
@@ -19,8 +21,11 @@ class DatabaseClient:
         self.translator = DetectorUnitDataTranslator()
         self.base = commonBase
 
-    def init_tables(self):
+    def init_all_tables(self):
         self.base.metadata.create_all(bind=self.engine)
+
+    def init_table(self, tableObject):
+        tableObject.metadata.create(bind=self.engine)
 
     def make_session(self):
         self.session = sessionmaker(bind=self.engine)()
@@ -35,6 +40,14 @@ class DatabaseClient:
         except Exception as E:
             self.logger.exception(E)
             self.logger.exception('Lost connection to database')
+
+    def clear_table(self, tableName):
+        table = Table("{}".format(tableName))
+        try:
+            self.session.delete(table)
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
 
 
 if __name__ == '__main__':

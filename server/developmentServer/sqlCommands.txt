@@ -1,0 +1,4 @@
+USE projetneigedb;
+SELECT * FROM DetectorUnitsData;
+DELETE FROM DetectorUnitsData WHERE timeStamp = "1900-02-11 01:01:01";
+
