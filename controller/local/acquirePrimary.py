@@ -68,9 +68,15 @@ def backdoorState():
     return state
 
 
-def capture(filepath):
+def capture(filepath, lowRes=False):
     camera = PiCamera()
-    camera.capture(filepath)
+    camera.led = False
+    camera.vflip = True
+    if lowRes:
+        camera.resolution = (344, 200)
+        camera.capture(filepath, quality=20)
+    else:
+        camera.capture(filepath)
 
 
 def loadPastFiles():
@@ -200,6 +206,14 @@ if __name__ == "__main__":
                 print("S.Im")
             except Exception as e:
                 logger.info("E.Cam: {}".format(type(e).__name__))
+
+        try:
+            imageFilePath = "data/IML_{}.jpg".format(acqCount)
+            capture(os.path.join(directory, imageFilePath), lowRes=True)
+            copyToServer(imageFilePath)
+            print("S.Iml")
+        except Exception as e:
+            logger.info("E.LCam: {}".format(type(e).__name__))
 
         if len(fileDiff) > 0:
             autoShutdown = True

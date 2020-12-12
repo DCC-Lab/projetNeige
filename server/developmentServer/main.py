@@ -75,9 +75,11 @@ def sendImages(files):
             if "IM_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/highres.jpg")
+                print("Sent High Res Image")
             elif "IML_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/lowres.jpg")
+                print("Sent Low Res Image")
 
         except Exception as e:
             print("E.Send {} : {}".format(fileName, type(e).__name__))
