@@ -24,6 +24,9 @@ captureIntervals = 6
 
 SERVER = "24.201.18.112"
 USER = "Alegria"
+camera = PiCamera()
+camera.led = False
+camera.vflip = True
 
 
 def setupLogger(name, filePath, level=logging.INFO):
@@ -69,13 +72,11 @@ def backdoorState():
 
 
 def capture(filepath, lowRes=False):
-    camera = PiCamera()
-    camera.led = False
-    camera.vflip = True
     if lowRes:
         camera.resolution = (344, 200)
         camera.capture(filepath, quality=20)
     else:
+        camera.resolution = (1920, 1080)
         camera.capture(filepath)
 
 
@@ -198,6 +199,8 @@ if __name__ == "__main__":
 
         copySecondaryFilesToServer(fileDiff)
 
+        time.sleep(8)
+
         if launchCount % captureIntervals == 0 and acqCount == 0:
             try:
                 imageFilePath = "data/IM_{}.jpg".format(acqCount)
@@ -215,6 +218,8 @@ if __name__ == "__main__":
         except Exception as e:
             logger.info("E.LCam: {}".format(type(e).__name__))
 
+        time.sleep(2)
+
         if len(fileDiff) > 0:
             autoShutdown = True
 
@@ -224,6 +229,7 @@ if __name__ == "__main__":
 
         logger.info("{}s, Shut={}".format(round(time.time() - time0), autoShutdown))
 
+        time.sleep(2)
         sendMissingLogs()
 
     if autoShutdown:
