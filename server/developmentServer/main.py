@@ -3,12 +3,13 @@ import pathlib
 from datetime import datetime, timedelta
 from DatabaseConfigs import remote_database_config
 from DatabaseClient import DatabaseClient
+import paramiko
 import time
 
 dbDir = os.path.dirname(os.path.abspath(__file__))
 serverDir = "C:/SnowOptics/data"
 
-TAGS = ["PD_"]
+TAGS = ["PD_", "IM_", "IML_"]
 
 
 def loadPastFiles():
@@ -30,14 +31,14 @@ def fileKey(filename: str):
     return int(filename.split(".")[0].split("_")[1])
 
 
-def listenForNewFiles(intervalInSeconds=4):
+def listenForNewFiles(intervalInSeconds=6):
     print("...listening")
     pastFiles = loadPastFiles()
 
     newFiles = []
     while len(newFiles) == 0:
         newFiles = [f for f in loadCurrentFiles() if f not in pastFiles]
-        time.sleep(intervalInSeconds)
+        time.sleep(1)
 
     # Time window for additional files to be added after the first batch is detected
     lastBatch = 0
@@ -51,20 +52,59 @@ def listenForNewFiles(intervalInSeconds=4):
     return newFiles, currentFiles
 
 
+def sendImages(files):
+    print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
+
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
+        ssh.connect("70.55.117.196", port=250, username="jlbegin")
+        sftp = ssh.open_sftp()
+    except Exception as e:
+        print("E.SSH: {}".format(type(e).__name__))
+        return
+
+    for fileName in files:
+        sourcePath = os.path.join(serverDir, fileName)
+        timeObject = datetime.fromtimestamp(pathlib.Path(sourcePath).stat().st_ctime)
+        timeString = timeObject.strftime("%Y-%m-%d %H:%M:%S")
+        # timeStamp not used yet
+
+        try:
+            if "IM_" in fileName:
+                sftp.put(sourcePath,
+                         "/usr/share/grafana/public/img/highres.jpg")
+            elif "IML_" in fileName:
+                sftp.put(sourcePath,
+                         "/usr/share/grafana/public/img/lowres.jpg")
+
+        except Exception as e:
+            print("E.Send {} : {}".format(fileName, type(e).__name__))
+
+    sftp.close()
+    ssh.close()
+
+
 if __name__ == '__main__':
     # Ignore files already on the server
     setPastFiles(loadCurrentFiles())
 
     while True:
         newFiles, currentFiles = listenForNewFiles()
-        newFiles.sort(key=fileKey)
 
+        imageFiles = [f for f in newFiles if "PD_" not in f]
+        if imageFiles:
+            sendImages(imageFiles)
+
+        dataFiles = [f for f in newFiles if "PD_" in f]
+        dataFiles.sort(key=fileKey)
         try:
             dbc = DatabaseClient(remote_database_config)
-            for i, file in enumerate(newFiles):
+            for i, file in enumerate(dataFiles):
                 filePath = os.path.join(serverDir, file)
                 timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
-                delta = len(newFiles) - (i+1)
+                delta = len(dataFiles) - (i+1)
                 dbc.insert_photodiode_data(filePath, timeObject - timedelta(minutes=1 * delta))
             setPastFiles(currentFiles)
         except Exception as e:
