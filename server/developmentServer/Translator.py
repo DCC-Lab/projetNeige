@@ -24,6 +24,7 @@ class DetectorUnitDataTranslator:
                     translatedDict["relatedClusterName"] = "Field"
                     
                 for j, statData in enumerate(unitRawData):
+                    statData = [None if d == 'nan' else d for d in statData]
                     if j <= 3:
                         translatedDict["pd{}DigitalNumberMean".format(j+1)] = statData[0]
                         translatedDict["pd{}DigitalNumberSd".format(j+1)] = statData[1]
