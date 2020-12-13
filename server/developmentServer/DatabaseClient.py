@@ -65,5 +65,5 @@ class DatabaseClient:
 if __name__ == '__main__':
     dbc = DatabaseClient(config=localhost_database_config)
     dbc.init_all_tables()
-    dbc.add_imageBatch(["highres.jpg", "lowres.jpg"], ["1900-06-06 12:00:00", "1900-06-06 12:00:00"])
-    dbc.commit_data()
+    # dbc.add_lowres_image(["highres.jpg", "lowres.jpg"], ["1900-06-06 12:00:00", "1900-06-06 12:00:00"])
+    # dbc.commit_data()
