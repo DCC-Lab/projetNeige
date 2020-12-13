@@ -1,12 +1,12 @@
 import uuid
 import pathlib
 import datetime
-from ORM import DetectorUnitDataORM
+from ORM import DetectorUnitDataORM, LowResolutionFeedORM
 
 
-class DetectorUnitDataTranslator:
+class Translator:
 
-    def from_txt_to_orm(self, filePath, timeStamp):
+    def from_txt_to_detector_ORM(self, filePath, timeStamp):
         ORMList = []
 
         timeString = timeStamp.strftime("%Y-%m-%d %H:%M:%S")
@@ -41,8 +41,22 @@ class DetectorUnitDataTranslator:
 
             return ORMList
 
+    def from_image_to_lowres_ORM(self, filepathList, timestampList):
+        ORMList = []
+        for i, image in enumerate(filepathList):
+            # Convert digital data to binary format
+            with open(image, 'rb') as file:
+                binaryData = file.read()
+                ORMList.append(LowResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestampList[i], image=binaryData))
 
+        return ORMList
 
-if __name__ == "__main__":
-    translator = DetectorUnitDataTranslator()
-    ormList = translator.from_txt_to_orm("testData.txt")
+    def from_image_to_highres_ORM(self, filepathList, timestampList):
+            ORMList = []
+            for i, image in enumerate(filepathList):
+                # Convert digital data to binary format
+                with open(image, 'rb') as file:
+                    binaryData = file.read()
+                    ORMList.append(LowResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestampList[i], image=binaryData))
+
+            return ORMList

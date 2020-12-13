@@ -1,4 +1,3 @@
-import uuid
 from sqlalchemy import Column, String, Integer, Date, Time, DateTime, Float
 from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from ORMBase import commonBase
@@ -26,12 +25,17 @@ class DetectorUnitDataORM(commonBase):
 
 class LowResolutionFeedORM(commonBase):
     __tablename__ = "lowResolutionFeed"
-    timeStamp = Column(DateTime, primary_key=True)
+    id = Column(String(36), primary_key=True)
+    timeStamp = Column(DateTime)
     image = Column(MEDIUMBLOB)
 
 
 class HighResolutionFeedORM(commonBase):
     __tablename__ = "highResolutionFeed"
-    timeStamp = Column(DateTime, primary_key=True)
+    id = Column(String(36), primary_key=True)
+    timeStamp = Column(DateTime)
     image = Column(MEDIUMBLOB)
+
+
+
 
