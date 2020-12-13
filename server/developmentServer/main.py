@@ -67,18 +67,25 @@ def sendImages(files):
 
     for fileName in files:
         sourcePath = os.path.join(serverDir, fileName)
+
         timeObject = datetime.fromtimestamp(pathlib.Path(sourcePath).stat().st_ctime)
         timeString = timeObject.strftime("%Y-%m-%d %H:%M:%S")
-        # timeStamp not used yet
+        timeStampFile = os.path.join(os.path.dirname(serverDir), "times.temp")
+        with open(timeStampFile, "w+") as f:
+            f.write(timeString)
 
         try:
             if "IM_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/highres.jpg")
+                sftp.put(timeStampFile,
+                         "/usr/share/grafana/public/img/highresTimestamp.txt")
                 print("Sent High Res Image")
             elif "IML_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/lowres.jpg")
+                sftp.put(timeStampFile,
+                         "/usr/share/grafana/public/img/lowresTimestamp.txt")
                 print("Sent Low Res Image")
 
         except Exception as e:
