@@ -31,7 +31,7 @@ def fileKey(filename: str):
     return int(filename.split(".")[0].split("_")[1])
 
 
-def listenForNewFiles(intervalInSeconds=6):
+def listenForNewFiles(intervalInSeconds=8):
     print("...listening")
     pastFiles = loadPastFiles()
 
@@ -52,6 +52,7 @@ def listenForNewFiles(intervalInSeconds=6):
     return newFiles, currentFiles
 
 
+# deprecated
 def sendImages(files):
     print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
 
@@ -72,20 +73,20 @@ def sendImages(files):
         timeString = timeObject.strftime("%Y-%m-%d %H:%M:%S")
         timeStampFile = os.path.join(os.path.dirname(serverDir), "times.temp")
         with open(timeStampFile, "w+") as f:
-            f.write(timeString)
+            f.write("<p>Last frame: {}</p>".format(timeString))
 
         try:
             if "IM_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/highres.jpg")
                 sftp.put(timeStampFile,
-                         "/usr/share/grafana/public/img/highresTimestamp.txt")
+                         "/usr/share/grafana/public/img/highresTimestamp.html")
                 print("Sent High Res Image")
             elif "IML_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/lowres.jpg")
                 sftp.put(timeStampFile,
-                         "/usr/share/grafana/public/img/lowresTimestamp.txt")
+                         "/usr/share/grafana/public/img/lowresTimestamp.html")
                 print("Sent Low Res Image")
 
         except Exception as e:
@@ -103,9 +104,6 @@ if __name__ == '__main__':
         newFiles, currentFiles = listenForNewFiles()
 
         imageFiles = [f for f in newFiles if "PD_" not in f]
-        if imageFiles:
-            sendImages(imageFiles)
-
         dataFiles = [f for f in newFiles if "PD_" in f]
         dataFiles.sort(key=fileKey)
         try:
@@ -114,7 +112,17 @@ if __name__ == '__main__':
                 filePath = os.path.join(serverDir, file)
                 timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
                 delta = len(dataFiles) - (i+1)
-                dbc.insert_photodiode_data(filePath, timeObject - timedelta(minutes=1 * delta))
+                dbc.add_detector_data(filePath, timeObject - timedelta(minutes=1 * delta))
+            for file in imageFiles:
+                filePath = os.path.join(serverDir, file)
+                timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
+                if "IM_" in file:
+                    dbc.add_highres_image(filePath, timeObject)
+                    print("Sent High Res Image")
+                elif "IML_" in file:
+                    dbc.add_lowres_image(filePath, timeObject)
+                    print("Sent Low Res Image")
+            dbc.commit_data()
             setPastFiles(currentFiles)
         except Exception as e:
             print("DB Error: {}".format(type(e).__name__))
