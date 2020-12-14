@@ -31,6 +31,9 @@ class DatabaseClient:
     def add_detector_data(self, dataFilepath, timestamp):
         self.ormList.append(self.translator.from_txt_to_detector_ORM(dataFilepath, timestamp))
 
+    def add_photodiode_power_data(self, dataFilepath, timestamp):
+        self.ormList.append(self.translator.from_txt_to_power_ORM(dataFilepath, timestamp))
+
     def add_lowres_image(self, filepath, timestamp):
         self.ormList.append(self.translator.from_image_to_lowres_ORM(filepath, timestamp))
 
@@ -63,7 +66,7 @@ class DatabaseClient:
 
 
 if __name__ == '__main__':
-    dbc = DatabaseClient(config=localhost_database_config)
+    dbc = DatabaseClient(config=remote_database_config)
     dbc.init_all_tables()
-    # dbc.add_lowres_image(["highres.jpg", "lowres.jpg"], ["1900-06-06 12:00:00", "1900-06-06 12:00:00"])
-    # dbc.commit_data()
+    dbc.add_photodiode_power_data("testData.txt", "1900-06-06 12:00:00")
+    dbc.commit_data()

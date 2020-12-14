@@ -22,6 +22,17 @@ class DetectorUnitDataORM(commonBase):
     humidityMean = Column(Float)
     humiditySd = Column(Float)
 
+class PhotodiodeDataORM(commonBase):
+    __tablename__ = "PhotodiodeDataORM"
+    id = Column(String(36), primary_key=True)
+    timeStamp = Column(DateTime)
+    location = Column(String(1))
+    height = Column(Float)
+    wavelength = Column(Float)
+    powerMean = Column(Float)
+    powerSD = Column(Float)
+    digitalNumberMean = Column(Float)
+    digitalNumberSD = Column(Float)
 
 class LowResolutionFeedORM(commonBase):
     __tablename__ = "lowResolutionFeed"
