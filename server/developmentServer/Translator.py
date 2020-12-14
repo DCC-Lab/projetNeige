@@ -41,22 +41,19 @@ class Translator:
 
             return ORMList
 
-    def from_image_to_lowres_ORM(self, filepathList, timestampList):
+    def from_image_to_lowres_ORM(self, filepath, timestamp):
         ORMList = []
-        for i, image in enumerate(filepathList):
-            # Convert digital data to binary format
-            with open(image, 'rb') as file:
-                binaryData = file.read()
-                ORMList.append(LowResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestampList[i], image=binaryData))
+        with open(filepath, 'rb') as file:
+            binaryData = file.read()
+            ORMList.append(LowResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestamp, image=binaryData))
 
         return ORMList
 
-    def from_image_to_highres_ORM(self, filepathList, timestampList):
+    def from_image_to_highres_ORM(self, filepath, timestamp):
             ORMList = []
-            for i, image in enumerate(filepathList):
-                # Convert digital data to binary format
-                with open(image, 'rb') as file:
-                    binaryData = file.read()
-                    ORMList.append(LowResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestampList[i], image=binaryData))
+
+            with open(filepath, 'rb') as file:
+                binaryData = file.read()
+                ORMList.append(LowResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestamp, image=binaryData))
 
             return ORMList
