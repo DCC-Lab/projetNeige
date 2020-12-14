@@ -96,32 +96,40 @@ def sendImages(files):
     ssh.close()
 
 
+def backTrackTime(filePath, index=0, delta=1):
+    timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
+    correctTime = timeObject - timedelta(minutes=delta * (len(dataFiles) - (index + 1)))
+    shiftTime = correctTime + timedelta(minutes=4)
+    if 17 < shiftTime.hour < 7:
+        correctTime = correctTime - timedelta(hours=14)
+    return correctTime
+
+
 if __name__ == '__main__':
     # Ignore files already on the server
     setPastFiles(loadCurrentFiles())
 
     while True:
         newFiles, currentFiles = listenForNewFiles()
+        newFiles.sort(key=fileKey)
 
-        imageFiles = [f for f in newFiles if "PD_" not in f]
         dataFiles = [f for f in newFiles if "PD_" in f]
-        dataFiles.sort(key=fileKey)
+        highResImages = [f for f in newFiles if "IM_" in f]
+        lowResImages = [f for f in newFiles if "IML_" not in f]
+
         try:
             dbc = DatabaseClient(remote_database_config)
             for i, file in enumerate(dataFiles):
                 filePath = os.path.join(serverDir, file)
-                timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
-                delta = len(dataFiles) - (i+1)
-                dbc.add_detector_data(filePath, timeObject - timedelta(minutes=1 * delta))
-            for file in imageFiles:
+                dbc.add_detector_data(filePath, backTrackTime(filePath, index=i, delta=1))
+            for i, file in enumerate(highResImages):
                 filePath = os.path.join(serverDir, file)
-                timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
-                if "IM_" in file:
-                    dbc.add_highres_image(filePath, timeObject)
-                    print("Sent High Res Image")
-                elif "IML_" in file:
-                    dbc.add_lowres_image(filePath, timeObject)
-                    print("Sent Low Res Image")
+                dbc.add_highres_image(filePath, backTrackTime(filePath, index=i, delta=60))
+                print("Sent High Res Image")
+            for i, file in enumerate(lowResImages):
+                filePath = os.path.join(serverDir, file)
+                dbc.add_lowres_image(filePath, backTrackTime(filePath, index=i, delta=1))
+                print("Sent Low Res Image")
             dbc.commit_data()
             setPastFiles(currentFiles)
         except Exception as e:
