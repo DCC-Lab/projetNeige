@@ -1,7 +1,7 @@
 import uuid
 import pathlib
 import datetime
-from ORM import DetectorUnitDataORM, LowResolutionFeedORM
+from ORM import DetectorUnitDataORM, LowResolutionFeedORM, HighResolutionFeedORM
 
 
 class Translator:
@@ -54,6 +54,6 @@ class Translator:
 
             with open(filepath, 'rb') as file:
                 binaryData = file.read()
-                ORMList.append(LowResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestamp, image=binaryData))
+                ORMList.append(HighResolutionFeedORM(id=str(uuid.uuid4()), timeStamp=timestamp, image=binaryData))
 
             return ORMList
