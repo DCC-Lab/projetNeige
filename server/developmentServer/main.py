@@ -123,7 +123,9 @@ if __name__ == '__main__':
             dbc = DatabaseClient(remote_database_config)
             for i, file in enumerate(dataFiles):
                 filePath = os.path.join(serverDir, file)
-                dbc.add_detector_data(filePath, backTrackTime(filePath, index=len(dataFiles) - (i + 1), delta=1))
+                timeStamp = backTrackTime(filePath, index=len(dataFiles) - (i + 1), delta=1)
+                dbc.add_detector_data(filePath, timeStamp)
+                dbc.add_photodiode_power_data(filePath, timeStamp)
             for i, file in enumerate(highResImages):
                 filePath = os.path.join(serverDir, file)
                 dbc.add_highres_image(filePath, backTrackTime(filePath, index=len(highResImages) - (i + 1), delta=60))
