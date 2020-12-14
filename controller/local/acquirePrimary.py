@@ -112,7 +112,7 @@ def listenForNewFiles(initialTimeOut):
 
 
 # public 24.201.18.112, lan 192.168.0.188
-def copyToServer(filepath):
+def copyToServer(filepath, tag = None):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -124,7 +124,11 @@ def copyToServer(filepath):
         ssh.close()
         return True
     except Exception as e:
-        logger.info("E.Send {} : {}".format(filepath, type(e).__name__))
+        fileName = tag if tag is not None else filepath
+        if type(e) == OSError:
+            logger.info("EO.{}".format(fileName))
+        else:
+            logger.info("E.{} : {}".format(fileName, type(e).__name__))
         return False
 
 
@@ -173,7 +177,7 @@ def sendMissingLogs():
     logDiff = [f for f in currentLogs if f not in pastLogs]
     print(".Sending {}: {}".format(len(logDiff), [l.split(".")[0] for l in logDiff]))
     for i, fileName in enumerate(logDiff):
-        if not copyToServer("data/{}".format(fileName)):
+        if not copyToServer("data/{}".format(fileName, tag=i)):
             currentLogs.remove(fileName)
         else:
             logger.info("{}".format(i + 1))
