@@ -25,7 +25,6 @@ class Translator:
                     statData = [None if d == 'nan' else d for d in statData]
                     if j < 4 and statData[0] is not None:
                         actualIndex = i * 4 + j
-                        statData = [None if d == 'nan' else d for d in statData]
                         translatedDict = {}
                         translatedDict["location"] = str(calibrationList[actualIndex][-1])
                         translatedDict["height"] = float(calibrationList[actualIndex][-3])
