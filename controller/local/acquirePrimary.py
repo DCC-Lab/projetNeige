@@ -135,7 +135,10 @@ def copyToServer(filepath, tag = None):
 def copySecondaryFilesToServer(files):
     currentFiles = loadCurrentFiles()
 
-    print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
+    if len(files) < 10:
+        print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
+    else:
+        print(".Sending {}".format(len(files)))
 
     try:
         ssh = paramiko.SSHClient()
@@ -175,7 +178,10 @@ def sendMissingLogs():
         pastLogs = [l.replace("\n", "") for l in f.readlines()]
 
     logDiff = [f for f in currentLogs if f not in pastLogs]
-    print(".Sending {}: {}".format(len(logDiff), [l.split(".")[0] for l in logDiff]))
+    if len(logDiff) < 10:
+        print(".Sending {} L: {}".format(len(logDiff), [l.split(".")[0] for l in logDiff]))
+    else:
+        print(".Sending {} L".format(len(logDiff)))
     for i, fileName in enumerate(logDiff):
         if not copyToServer("data/{}".format(fileName, tag=i)):
             currentLogs.remove(fileName)
@@ -189,7 +195,10 @@ def sendMissingImages():
     missingImages = loadMissingImages()
     if not missingImages:
         return
-    print(".Sending Im {}: {}".format(len(missingImages), [l.split(".")[0] for l in missingImages]))
+    if len(missingImages) < 10:
+        print(".Sending {} Im: {}".format(len(missingImages), [l.split(".")[0] for l in missingImages]))
+    else:
+        print(".Sending {} Im".format(len(missingImages)))
     for i, filePath in enumerate(missingImages):
         if copyToServer(filePath):
             missingImages.remove(filePath)
