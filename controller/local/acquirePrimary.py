@@ -19,14 +19,14 @@ Launched at startup after main.py which opens 3G & Inverse SSH
 - Auto shutdown if no backdoor enabled
 """
 
-nbOfAcquisition = 10
+nbOfAcquisition = 20
 captureIntervals = 6
 
 SERVER = "24.201.18.112"
 USER = "Alegria"
 camera = PiCamera()
 camera.led = False
-camera.vflip = True
+camera.hflip = True
 
 
 def setupLogger(name, filePath, level=logging.INFO):
@@ -74,7 +74,7 @@ def backdoorState():
 def capture(filepath, lowRes=False):
     if lowRes:
         camera.resolution = (344, 200)
-        camera.capture(filepath, quality=20)
+        camera.capture(filepath, quality=12)
     else:
         camera.resolution = (1920, 1080)
         camera.capture(filepath)
@@ -181,6 +181,39 @@ def sendMissingLogs():
         f.write('\n'.join(currentLogs) + '\n')
 
 
+def sendMissingImages():
+    missingImages = loadMissingImages()
+    if not missingImages:
+        return
+    print(".Sending Im {}: {}".format(len(missingImages), [l.split(".")[0] for l in missingImages]))
+    for i, filePath in enumerate(missingImages):
+        if copyToServer(filePath):
+            missingImages.remove(filePath)
+            logger.info("{}".format(i + 1))
+        else:
+            logger.info("E{}".format(i + 1))
+    saveMissingImages(missingImages)
+
+
+def loadMissingImages():
+    fileDiffPath = os.path.join(directory, "settings/imDiff.txt")
+    with open(fileDiffPath, "r") as f:
+        fileDiff = [l.replace("\n", "") for l in f.readlines()]
+    return [f for f in fileDiff if f]
+
+
+def saveMissingImages(fileDiff: list):
+    fileDiffPath = os.path.join(directory, "settings/imDiff.txt")
+    with open(os.path.join(directory, fileDiffPath), "w+") as f:
+        f.write('\n'.join(fileDiff))
+
+
+def appendMissingImages(filePath):
+    missingFiles = loadMissingImages()
+    missingFiles.append(filePath)
+    saveMissingImages(missingFiles)
+
+
 if __name__ == "__main__":
     autoShutdown = False
     launchCount = getLaunchCount()
@@ -202,21 +235,23 @@ if __name__ == "__main__":
         time.sleep(8)
 
         if launchCount % captureIntervals == 0 and acqCount == 0:
+            imageFilePath = "data/IM_{}.jpg".format(acqCount)
             try:
-                imageFilePath = "data/IM_{}.jpg".format(acqCount)
                 capture(os.path.join(directory, imageFilePath))
                 copyToServer(imageFilePath)
                 print("S.Im")
             except Exception as e:
                 logger.info("E.Cam: {}".format(type(e).__name__))
+                appendMissingImages(imageFilePath)
 
+        imageFilePath = "data/IML_{}.jpg".format(acqCount)
         try:
-            imageFilePath = "data/IML_{}.jpg".format(acqCount)
             capture(os.path.join(directory, imageFilePath), lowRes=True)
             copyToServer(imageFilePath)
             print("S.Iml")
         except Exception as e:
             logger.info("E.LCam: {}".format(type(e).__name__))
+            appendMissingImages(imageFilePath)
 
         time.sleep(2)
 
@@ -230,6 +265,8 @@ if __name__ == "__main__":
         logger.info("{}s, Shut={}".format(round(time.time() - time0), autoShutdown))
 
         time.sleep(2)
+
+        sendMissingImages()
         sendMissingLogs()
 
     if autoShutdown:
