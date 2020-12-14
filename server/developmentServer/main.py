@@ -52,7 +52,6 @@ def listenForNewFiles(intervalInSeconds=8):
     return newFiles, currentFiles
 
 
-# deprecated
 def sendImages(files):
     print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
 
@@ -69,25 +68,25 @@ def sendImages(files):
     for fileName in files:
         sourcePath = os.path.join(serverDir, fileName)
 
-        timeObject = datetime.fromtimestamp(pathlib.Path(sourcePath).stat().st_ctime)
-        timeString = timeObject.strftime("%Y-%m-%d %H:%M:%S")
-        timeStampFile = os.path.join(os.path.dirname(serverDir), "times.temp")
-        with open(timeStampFile, "w+") as f:
-            f.write("<p>Last frame: {}</p>".format(timeString))
+        # timeObject = datetime.fromtimestamp(pathlib.Path(sourcePath).stat().st_ctime)
+        # timeString = timeObject.strftime("%Y-%m-%d %H:%M:%S")
+        # timeStampFile = os.path.join(os.path.dirname(serverDir), "times.temp")
+        # with open(timeStampFile, "w+") as f:
+        #     f.write("<p>Last frame: {}</p>".format(timeString))
 
         try:
             if "IM_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/highres.jpg")
-                sftp.put(timeStampFile,
-                         "/usr/share/grafana/public/img/highresTimestamp.html")
-                print("Sent High Res Image")
+                # sftp.put(timeStampFile,
+                #          "/usr/share/grafana/public/img/highresTimestamp.html")
+                print("Updated Grafana High Res Image")
             elif "IML_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/lowres.jpg")
-                sftp.put(timeStampFile,
-                         "/usr/share/grafana/public/img/lowresTimestamp.html")
-                print("Sent Low Res Image")
+                # sftp.put(timeStampFile,
+                #          "/usr/share/grafana/public/img/lowresTimestamp.html")
+                print("Updated Grafana Low Res Image")
 
         except Exception as e:
             print("E.Send {} : {}".format(fileName, type(e).__name__))
@@ -116,6 +115,9 @@ if __name__ == '__main__':
         dataFiles = [f for f in newFiles if "PD_" in f]
         highResImages = [f for f in newFiles if "IM_" in f]
         lowResImages = [f for f in newFiles if "IML_" in f]
+
+        lastImages = [l[-1] for l in [highResImages, lowResImages] if l]
+        sendImages(lastImages)
 
         try:
             dbc = DatabaseClient(remote_database_config)
