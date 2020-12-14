@@ -98,9 +98,9 @@ def sendImages(files):
 
 def backTrackTime(filePath, index=0, delta=1):
     timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
-    correctTime = timeObject - timedelta(minutes=delta * (len(dataFiles) - (index + 1)))
-    shiftTime = correctTime + timedelta(minutes=4)
-    if 17 < shiftTime.hour < 7:
+    correctTime = timeObject - timedelta(minutes=delta * index)
+    shiftTime = correctTime + timedelta(minutes=4)  # opens at 6h56, not 7
+    if shiftTime.hour < 7 or shiftTime.hour > 17:
         correctTime = correctTime - timedelta(hours=14)
     return correctTime
 
@@ -115,20 +115,20 @@ if __name__ == '__main__':
 
         dataFiles = [f for f in newFiles if "PD_" in f]
         highResImages = [f for f in newFiles if "IM_" in f]
-        lowResImages = [f for f in newFiles if "IML_" not in f]
+        lowResImages = [f for f in newFiles if "IML_" in f]
 
         try:
             dbc = DatabaseClient(remote_database_config)
             for i, file in enumerate(dataFiles):
                 filePath = os.path.join(serverDir, file)
-                dbc.add_detector_data(filePath, backTrackTime(filePath, index=i, delta=1))
+                dbc.add_detector_data(filePath, backTrackTime(filePath, index=len(dataFiles) - (i + 1), delta=1))
             for i, file in enumerate(highResImages):
                 filePath = os.path.join(serverDir, file)
-                dbc.add_highres_image(filePath, backTrackTime(filePath, index=i, delta=60))
+                dbc.add_highres_image(filePath, backTrackTime(filePath, index=len(highResImages) - (i + 1), delta=60))
                 print("Sent High Res Image")
             for i, file in enumerate(lowResImages):
                 filePath = os.path.join(serverDir, file)
-                dbc.add_lowres_image(filePath, backTrackTime(filePath, index=i, delta=1))
+                dbc.add_lowres_image(filePath, backTrackTime(filePath, index=len(lowResImages) - (i + 1), delta=1))
                 print("Sent Low Res Image")
             dbc.commit_data()
             setPastFiles(currentFiles)
