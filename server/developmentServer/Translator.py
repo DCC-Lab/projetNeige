@@ -22,7 +22,7 @@ class Translator:
             for i, unitRawData in enumerate(rawData):
 
                 for j, statData in enumerate(unitRawData):
-                    if j < 4:
+                    if j < 4 and statData[0] is not None:
                         actualIndex = i * 4 + j
                         statData = [None if d == 'nan' else d for d in statData]
                         translatedDict = {}
