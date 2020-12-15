@@ -26,7 +26,7 @@ SERVER = "24.201.18.112"
 USER = "Alegria"
 camera = PiCamera()
 camera.led = False
-camera.hflip = True
+camera.vflip = True
 
 
 def setupLogger(name, filePath, level=logging.INFO):
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     autoShutdown = False
     launchCount = getLaunchCount()
 
-    for _ in range(nbOfAcquisition):
+    for k in range(nbOfAcquisition):
         time0 = time.time()
         recTimeStamp = datetime.now().strftime("%m%d%H%M")
         acqCount = getAcqCount()
@@ -247,7 +247,7 @@ if __name__ == "__main__":
 
         time.sleep(8)
 
-        if launchCount % captureIntervals == 0 and acqCount == 0:
+        if launchCount % captureIntervals == 0 and k == 0:
             imageFilePath = "data/IM_{}.jpg".format(acqCount)
             try:
                 capture(os.path.join(directory, imageFilePath))
