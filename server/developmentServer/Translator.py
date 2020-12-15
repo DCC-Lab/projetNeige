@@ -33,6 +33,8 @@ class Translator:
                         translatedDict["digitalNumberMean"] = float(statData[0])
                         translatedDict["digitalNumberSD"] = float(statData[1])
                         translatedDict["powerMean"] = ((float(statData[0]) * float(calibrationList[actualIndex][2])) + float(calibrationList[actualIndex][3]))
+                        if translatedDict["powerMean"] < 0:
+                            translatedDict["powerMean"] = 0
                         translatedDict["powerSD"] = (float(statData[1]) * float(calibrationList[actualIndex][2]))
                         if j == 0:
                             translatedDict["pd_id"] = "1"

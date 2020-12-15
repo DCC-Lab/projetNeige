@@ -68,5 +68,3 @@ class DatabaseClient:
 if __name__ == '__main__':
     dbc = DatabaseClient(config=remote_database_config)
     dbc.init_all_tables()
-    dbc.add_photodiode_power_data("testData.txt", "1900-01-01 12:00:00")
-    dbc.commit_data()
