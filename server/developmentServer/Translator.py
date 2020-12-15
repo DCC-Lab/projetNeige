@@ -97,7 +97,7 @@ class Translator:
 
 
     @staticmethod
-    def from_image_to_highres_ORM(self, filepath, timestamp):
+    def from_image_to_highres_ORM(filepath, timestamp):
         ORMList = []
 
         with open(filepath, 'rb') as file:
