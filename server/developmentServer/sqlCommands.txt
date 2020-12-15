@@ -26,8 +26,32 @@ INSERT INTO tesTable VALUES(1,'MarcoPolo', 'Biology', NULL);
 # or
 INSERT INTO tesTable(student_id, name, major) VALUES(2, 'LOL', 'Physics');
 
-# SELECT ALL INFORMATION FROM TABLE
+# SELECT ALL COLUMNS FROM TABLE
 SELECT * FROM tesTable;
+
+# SELECT WITH A CONDITION
+SELECT FROM testTable
+WHERE name = 'TOM'
+
+# DELETE DATA FROM TABLE
+DELETE FROM tesTable
+
+#YOU CAN USE (AND), (OR),
+
+# Order information with a certain order regarding a column
+# This will send back all the student with the name Tom from the tesTable, and will order them by alphabetical major.
+SELECT tesTable.name
+FROM tesTable
+WHERE name = 'TOM'
+ORDER BY major DESC / ASC;
+
+# Order information with a certain order regarding multiple column, first column will be prioritized, then second
+# all the student with the name Tom from the tesTable, and will order them by alphabetical major, then by name.
+SELECT tesTable.name
+FROM tesTable
+WHERE name = 'TOM'
+ORDER BY major, name ASC ;
+
 
 # SELECT THE MOST RECENT TIMESTAMP AND REFORMAT IT
 SELECT DATE_FORMAT(timeStamp, "%Y-%m-%d %H:%i:%S") AS "timeStamp"
@@ -37,6 +61,21 @@ LIMIT 1;
 
 # SELECT THE LAST 8 DATA WHEN ORDERED BUT TIMESTAMP
 SELECT temperatureMean FROM DetectorUnitsData ORDER BY timeStamp DESC LIMIT 8;
+
+CREATE TABLE branch (
+  branch_id INT PRIMARY KEY,
+  branch_name VARCHAR(40),
+  mgr_id INT,
+  mgr_start_date DATE,
+  FOREIGN KEY(mgr_id) REFERENCES employee(emp_id) ON DELETE SET NULL
+);
+
+ALTER TABLE employee
+ADD FOREIGN KEY(branch_id)
+REFERENCES branch(branch_id)
+ON DELETE SET NULL;
+
+
 
 
 # Display all from table with condition

@@ -27,8 +27,8 @@ class Translator:
                         actualIndex = i * 4 + j
                         translatedDict = {}
                         translatedDict["location"] = str(calibrationList[actualIndex][-1])
-                        translatedDict["height"] = float(calibrationList[actualIndex][-3])
-                        translatedDict["wavelength"] = float(calibrationList[actualIndex][-2])
+                        translatedDict["height"] = str(calibrationList[actualIndex][-3])
+                        translatedDict["wavelength"] = str(calibrationList[actualIndex][-2])
                         translatedDict["digitalNumberMean"] = float(statData[0])
                         translatedDict["digitalNumberSD"] = float(statData[1])
                         translatedDict["powerMean"] = ((float(statData[0]) * float(calibrationList[actualIndex][2])) + float(calibrationList[actualIndex][3]))
