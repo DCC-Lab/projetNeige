@@ -26,6 +26,7 @@ class Translator:
                     if j < 4 and statData[0] is not None:
                         actualIndex = i * 4 + j
                         translatedDict = {}
+                        translatedDict["unit_id"] = str(i + 1)
                         translatedDict["location"] = str(calibrationList[actualIndex][-1])
                         translatedDict["height"] = str(calibrationList[actualIndex][-3])
                         translatedDict["wavelength"] = str(calibrationList[actualIndex][-2])
@@ -33,6 +34,14 @@ class Translator:
                         translatedDict["digitalNumberSD"] = float(statData[1])
                         translatedDict["powerMean"] = ((float(statData[0]) * float(calibrationList[actualIndex][2])) + float(calibrationList[actualIndex][3]))
                         translatedDict["powerSD"] = (float(statData[1]) * float(calibrationList[actualIndex][2]))
+                        if j == 0:
+                            translatedDict["pd_id"] = "1"
+                        elif j == 1:
+                            translatedDict["pd_id"] = "4"
+                        elif j == 2:
+                            translatedDict["pd_id"] = "2"
+                        elif j == 3:
+                            translatedDict["pd_id"] = "3"
 
                         ORMList.append(PhotodiodeDataORM(id=str(uuid.uuid4()), timeStamp=timeStamp, **translatedDict))
 
@@ -52,7 +61,7 @@ class Translator:
             for i, unitRawData in enumerate(rawData):
                 translatedDict = {"unitID": str(i + 1)}
                 if i < 4:
-                    translatedDict["relatedClusterName"] = "Chrubs"
+                    translatedDict["relatedClusterName"] = "Shrubs"
                 else:
                     translatedDict["relatedClusterName"] = "Field"
 

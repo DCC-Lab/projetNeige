@@ -25,6 +25,8 @@ class DetectorUnitDataORM(commonBase):
 class PhotodiodeDataORM(commonBase):
     __tablename__ = "PhotodiodeData"
     id = Column(String(36), primary_key=True)
+    unit_id = Column(String(2))
+    pd_id = Column(String(2))
     timeStamp = Column(DateTime)
     location = Column(String(1))
     height = Column(String(10))
