@@ -53,7 +53,7 @@ def listenForNewFiles(intervalInSeconds=8):
 
 
 def sendImages(files):
-    print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
+    print(".Sending {} Im: {}".format(len(files), [f.split(".")[0] for f in files]))
 
     try:
         ssh = paramiko.SSHClient()
@@ -78,14 +78,10 @@ def sendImages(files):
             if "IM_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/highres.jpg")
-                # sftp.put(timeStampFile,
-                #          "/usr/share/grafana/public/img/highresTimestamp.html")
                 print("Updated Grafana High Res Image")
             elif "IML_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/lowres.jpg")
-                # sftp.put(timeStampFile,
-                #          "/usr/share/grafana/public/img/lowresTimestamp.html")
                 print("Updated Grafana Low Res Image")
 
         except Exception as e:
@@ -106,7 +102,7 @@ def backTrackTime(filePath, index=0, delta=1):
 
 if __name__ == '__main__':
     # Ignore files already on the server
-    setPastFiles(loadCurrentFiles())
+    # setPastFiles(loadCurrentFiles())
 
     while True:
         newFiles, currentFiles = listenForNewFiles()
@@ -117,7 +113,8 @@ if __name__ == '__main__':
         lowResImages = [f for f in newFiles if "IML_" in f]
 
         lastImages = [l[-1] for l in [highResImages, lowResImages] if l]
-        sendImages(lastImages)
+        if lastImages:
+            sendImages(lastImages)
 
         try:
             dbc = DatabaseClient(remote_database_config)
