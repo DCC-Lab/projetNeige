@@ -31,7 +31,7 @@ def fileKey(filename: str):
     return int(filename.split(".")[0].split("_")[1])
 
 
-def listenForNewFiles(intervalInSeconds=6):
+def listenForNewFiles(intervalInSeconds=8):
     print("...listening")
     pastFiles = loadPastFiles()
 
@@ -53,7 +53,7 @@ def listenForNewFiles(intervalInSeconds=6):
 
 
 def sendImages(files):
-    print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
+    print(".Sending {} Im: {}".format(len(files), [f.split(".")[0] for f in files]))
 
     try:
         ssh = paramiko.SSHClient()
@@ -67,19 +67,22 @@ def sendImages(files):
 
     for fileName in files:
         sourcePath = os.path.join(serverDir, fileName)
-        timeObject = datetime.fromtimestamp(pathlib.Path(sourcePath).stat().st_ctime)
-        timeString = timeObject.strftime("%Y-%m-%d %H:%M:%S")
-        # timeStamp not used yet
+
+        # timeObject = datetime.fromtimestamp(pathlib.Path(sourcePath).stat().st_ctime)
+        # timeString = timeObject.strftime("%Y-%m-%d %H:%M:%S")
+        # timeStampFile = os.path.join(os.path.dirname(serverDir), "times.temp")
+        # with open(timeStampFile, "w+") as f:
+        #     f.write("<p>Last frame: {}</p>".format(timeString))
 
         try:
             if "IM_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/highres.jpg")
-                print("Sent High Res Image")
+                print("Updated Grafana High Res Image")
             elif "IML_" in fileName:
                 sftp.put(sourcePath,
                          "/usr/share/grafana/public/img/lowres.jpg")
-                print("Sent Low Res Image")
+                print("Updated Grafana Low Res Image")
 
         except Exception as e:
             print("E.Send {} : {}".format(fileName, type(e).__name__))
@@ -88,26 +91,47 @@ def sendImages(files):
     ssh.close()
 
 
+def backTrackTime(filePath, index=0, delta=1):
+    timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
+    correctTime = timeObject - timedelta(minutes=delta * index)
+    shiftTime = correctTime + timedelta(minutes=4)  # opens at 6h56, not 7
+    if shiftTime.hour < 7 or shiftTime.hour > 17:
+        correctTime = correctTime - timedelta(hours=14)
+    return correctTime
+
+
 if __name__ == '__main__':
     # Ignore files already on the server
-    setPastFiles(loadCurrentFiles())
+    # setPastFiles(loadCurrentFiles())
 
     while True:
         newFiles, currentFiles = listenForNewFiles()
-
-        imageFiles = [f for f in newFiles if "PD_" not in f]
-        if imageFiles:
-            sendImages(imageFiles)
+        newFiles.sort(key=fileKey)
 
         dataFiles = [f for f in newFiles if "PD_" in f]
-        dataFiles.sort(key=fileKey)
+        highResImages = [f for f in newFiles if "IM_" in f]
+        lowResImages = [f for f in newFiles if "IML_" in f]
+
+        lastImages = [l[-1] for l in [highResImages, lowResImages] if l]
+        if lastImages:
+            sendImages(lastImages)
+
         try:
             dbc = DatabaseClient(remote_database_config)
             for i, file in enumerate(dataFiles):
                 filePath = os.path.join(serverDir, file)
-                timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
-                delta = len(dataFiles) - (i+1)
-                dbc.insert_photodiode_data(filePath, timeObject - timedelta(minutes=1 * delta))
+                timeStamp = backTrackTime(filePath, index=len(dataFiles) - (i + 1), delta=1)
+                dbc.add_detector_data(filePath, timeStamp)
+                dbc.add_photodiode_power_data(filePath, timeStamp)
+            for i, file in enumerate(highResImages):
+                filePath = os.path.join(serverDir, file)
+                dbc.add_highres_image(filePath, backTrackTime(filePath, index=len(highResImages) - (i + 1), delta=60))
+                print("Sent High Res Image")
+            for i, file in enumerate(lowResImages):
+                filePath = os.path.join(serverDir, file)
+                dbc.add_lowres_image(filePath, backTrackTime(filePath, index=len(lowResImages) - (i + 1), delta=1))
+                print("Sent Low Res Image")
+            dbc.commit_data()
             setPastFiles(currentFiles)
         except Exception as e:
             print("DB Error: {}".format(type(e).__name__))

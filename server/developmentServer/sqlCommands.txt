@@ -1,4 +1,51 @@
+# USE A DB
 USE projetneigedb;
-SELECT * FROM DetectorUnitsData;
+
+# CREATING A TABLE IN A DATABASE
+CREATE TABLE tesTable (
+    student_id INT AUTO_INCREMENT,
+    name VARCHAR(20) UNIQUE,
+    major VARCHAR(20) NOT NULL,
+    minor VARCHAR(20) DEFAULT 'undecided', #The NULL value will change to undecided
+    PRIMARY KEY(student_id) );
+
+# DESCRIBE DETAILS OF A TABLE
+DESCRIBE tesTable;
+
+# DELETE A TABLE
+DROP TABLE tesTable;
+
+# ADD A COLUMN TO A TABLE
+ALTER TABLE tesTable ADD newcol VARCHAR(30);
+
+# DROP A COMPLETE COMLUMN IN A TABLE
+ALTER TABLE tesTable DROP COLUMN newcol;
+
+# INSERT DATA INTO A DATABASE
+INSERT INTO tesTable VALUES(1,'MarcoPolo', 'Biology', NULL);
+# or
+INSERT INTO tesTable(student_id, name, major) VALUES(2, 'LOL', 'Physics');
+
+# SELECT ALL INFORMATION FROM TABLE
+SELECT * FROM tesTable;
+
+# SELECT THE MOST RECENT TIMESTAMP AND REFORMAT IT
+SELECT DATE_FORMAT(timeStamp, "%Y-%m-%d %H:%i:%S") AS "timeStamp"
+FROM lowResolutionFeed
+ORDER BY timeStamp DESC
+LIMIT 1;
+
+# SELECT THE LAST 8 DATA WHEN ORDERED BUT TIMESTAMP
+SELECT temperatureMean FROM DetectorUnitsData ORDER BY timeStamp DESC LIMIT 8;
+
+
+# Display all from table with condition
+SELECT * FROM DetectorUnitsData WHERE UnitID = 3;
+
+# Delete item from table with condition
 DELETE FROM DetectorUnitsData WHERE timeStamp = "1900-02-11 01:01:01";
+
+# Delete entire table
+DROP TABLE table_name;
+
 

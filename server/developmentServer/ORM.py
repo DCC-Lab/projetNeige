@@ -1,4 +1,3 @@
-import uuid
 from sqlalchemy import Column, String, Integer, Date, Time, DateTime, Float
 from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from ORMBase import commonBase
@@ -23,15 +22,31 @@ class DetectorUnitDataORM(commonBase):
     humidityMean = Column(Float)
     humiditySd = Column(Float)
 
+class PhotodiodeDataORM(commonBase):
+    __tablename__ = "PhotodiodeDataORM"
+    id = Column(String(36), primary_key=True)
+    timeStamp = Column(DateTime)
+    location = Column(String(1))
+    height = Column(Float)
+    wavelength = Column(Float)
+    powerMean = Column(Float)
+    powerSD = Column(Float)
+    digitalNumberMean = Column(Float)
+    digitalNumberSD = Column(Float)
 
 class LowResolutionFeedORM(commonBase):
     __tablename__ = "lowResolutionFeed"
-    timeStamp = Column(DateTime, primary_key=True)
+    id = Column(String(36), primary_key=True)
+    timeStamp = Column(DateTime)
     image = Column(MEDIUMBLOB)
 
 
 class HighResolutionFeedORM(commonBase):
     __tablename__ = "highResolutionFeed"
-    timeStamp = Column(DateTime, primary_key=True)
+    id = Column(String(36), primary_key=True)
+    timeStamp = Column(DateTime)
     image = Column(MEDIUMBLOB)
+
+
+
 

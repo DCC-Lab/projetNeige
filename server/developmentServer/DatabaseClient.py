@@ -1,12 +1,12 @@
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Table
 from DatabaseConfigs import localhost_database_config
 from DatabaseConfigs import remote_database_config
-from Translator import DetectorUnitDataTranslator
-from ORM import DetectorUnitDataORM
-from ORMBase import commonBase
+from Translator import Translator
+from ORM import LowResolutionFeedORM, HighResolutionFeedORM
+from ORMBase import commonBase, localBase
 
 
 class DatabaseClient:
@@ -18,28 +18,27 @@ class DatabaseClient:
                                                                          self.db_config.server_host,
                                                                          self.db_config.database))
         self.logger = logging.getLogger("Monitor_DB")
-        self.translator = DetectorUnitDataTranslator()
         self.base = commonBase
+        self.ormList = []
+        self.translator = Translator()
 
     def init_all_tables(self):
         self.base.metadata.create_all(bind=self.engine)
 
-    def init_table(self, tableObject):
-        tableObject.metadata.create(bind=self.engine)
-
     def make_session(self):
         self.session = sessionmaker(bind=self.engine)()
 
-    def insert_photodiode_data(self, dataFilePath, timeStamp):
-        try:
-            self.make_session()
-            ormList = self.translator.from_txt_to_orm(dataFilePath, timeStamp)
-            for data in ormList:
-                self.session.add(data)
-            self.session.commit()
-        except Exception as E:
-            self.logger.exception(E)
-            self.logger.exception('Lost connection to database')
+    def add_detector_data(self, dataFilepath, timestamp):
+        self.ormList.append(self.translator.from_txt_to_detector_ORM(dataFilepath, timestamp))
+
+    def add_photodiode_power_data(self, dataFilepath, timestamp):
+        self.ormList.append(self.translator.from_txt_to_power_ORM(dataFilepath, timestamp))
+
+    def add_lowres_image(self, filepath, timestamp):
+        self.ormList.append(self.translator.from_image_to_lowres_ORM(filepath, timestamp))
+
+    def add_highres_image(self, filepath, timestamp):
+        self.ormList.append(self.translator.from_image_to_highres_ORM(filepath, timestamp))
 
     def clear_table(self, tableName):
         table = Table("{}".format(tableName))
@@ -49,7 +48,25 @@ class DatabaseClient:
         except Exception:
             self.session.rollback()
 
+    def clear_orm_list(self):
+        self.ormList = []
+
+    def commit_data(self):
+        try:
+            self.make_session()
+            for orm in self.ormList:
+                for data in orm:
+                    self.session.add(data)
+            self.session.commit()
+            self.clear_orm_list()
+        except Exception as E:
+            self.clear_orm_list()
+            self.logger.exception(E)
+            self.logger.exception('Lost connection to database')
+
 
 if __name__ == '__main__':
     dbc = DatabaseClient(config=remote_database_config)
-    dbc.init_tables()
+    dbc.init_all_tables()
+    dbc.add_photodiode_power_data("testData.txt", "1900-06-06 12:00:00")
+    dbc.commit_data()

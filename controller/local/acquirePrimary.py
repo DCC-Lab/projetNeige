@@ -19,7 +19,7 @@ Launched at startup after main.py which opens 3G & Inverse SSH
 - Auto shutdown if no backdoor enabled
 """
 
-nbOfAcquisition = 10
+nbOfAcquisition = 20
 captureIntervals = 6
 
 SERVER = "24.201.18.112"
@@ -74,7 +74,7 @@ def backdoorState():
 def capture(filepath, lowRes=False):
     if lowRes:
         camera.resolution = (344, 200)
-        camera.capture(filepath, quality=20)
+        camera.capture(filepath, quality=12)
     else:
         camera.resolution = (1920, 1080)
         camera.capture(filepath)
@@ -112,7 +112,7 @@ def listenForNewFiles(initialTimeOut):
 
 
 # public 24.201.18.112, lan 192.168.0.188
-def copyToServer(filepath):
+def copyToServer(filepath, tag = None):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -124,14 +124,21 @@ def copyToServer(filepath):
         ssh.close()
         return True
     except Exception as e:
-        logger.info("E.Send {} : {}".format(filepath, type(e).__name__))
+        fileName = tag if tag is not None else filepath
+        if type(e) == OSError:
+            logger.info("EO.{}".format(fileName))
+        else:
+            logger.info("E.{} : {}".format(fileName, type(e).__name__))
         return False
 
 
 def copySecondaryFilesToServer(files):
     currentFiles = loadCurrentFiles()
 
-    print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
+    if len(files) < 10:
+        print(".Sending {}: {}".format(len(files), [f.split(".")[0] for f in files]))
+    else:
+        print(".Sending {}".format(len(files)))
 
     try:
         ssh = paramiko.SSHClient()
@@ -171,9 +178,12 @@ def sendMissingLogs():
         pastLogs = [l.replace("\n", "") for l in f.readlines()]
 
     logDiff = [f for f in currentLogs if f not in pastLogs]
-    print(".Sending {}: {}".format(len(logDiff), [l.split(".")[0] for l in logDiff]))
+    if len(logDiff) < 10:
+        print(".Sending {} L: {}".format(len(logDiff), [l.split(".")[0] for l in logDiff]))
+    else:
+        print(".Sending {} L".format(len(logDiff)))
     for i, fileName in enumerate(logDiff):
-        if not copyToServer("data/{}".format(fileName)):
+        if not copyToServer("data/{}".format(fileName, tag=i)):
             currentLogs.remove(fileName)
         else:
             logger.info("{}".format(i + 1))
@@ -181,11 +191,47 @@ def sendMissingLogs():
         f.write('\n'.join(currentLogs) + '\n')
 
 
+def sendMissingImages():
+    missingImages = loadMissingImages()
+    if not missingImages:
+        return
+    if len(missingImages) < 10:
+        print(".Sending {} Im: {}".format(len(missingImages), [l.split(".")[0] for l in missingImages]))
+    else:
+        print(".Sending {} Im".format(len(missingImages)))
+    for i, filePath in enumerate(missingImages):
+        if copyToServer(filePath):
+            missingImages.remove(filePath)
+            logger.info("{}".format(i + 1))
+        else:
+            logger.info("E{}".format(i + 1))
+    saveMissingImages(missingImages)
+
+
+def loadMissingImages():
+    fileDiffPath = os.path.join(directory, "settings/imDiff.txt")
+    with open(fileDiffPath, "r") as f:
+        fileDiff = [l.replace("\n", "") for l in f.readlines()]
+    return [f for f in fileDiff if f]
+
+
+def saveMissingImages(fileDiff: list):
+    fileDiffPath = os.path.join(directory, "settings/imDiff.txt")
+    with open(os.path.join(directory, fileDiffPath), "w+") as f:
+        f.write('\n'.join(fileDiff))
+
+
+def appendMissingImages(filePath):
+    missingFiles = loadMissingImages()
+    missingFiles.append(filePath)
+    saveMissingImages(missingFiles)
+
+
 if __name__ == "__main__":
     autoShutdown = False
     launchCount = getLaunchCount()
 
-    for _ in range(nbOfAcquisition):
+    for k in range(nbOfAcquisition):
         time0 = time.time()
         recTimeStamp = datetime.now().strftime("%m%d%H%M")
         acqCount = getAcqCount()
@@ -201,22 +247,24 @@ if __name__ == "__main__":
 
         time.sleep(8)
 
-        if launchCount % captureIntervals == 0 and acqCount == 0:
+        if launchCount % captureIntervals == 0 and k == 0:
+            imageFilePath = "data/IM_{}.jpg".format(acqCount)
             try:
-                imageFilePath = "data/IM_{}.jpg".format(acqCount)
                 capture(os.path.join(directory, imageFilePath))
                 copyToServer(imageFilePath)
                 print("S.Im")
             except Exception as e:
                 logger.info("E.Cam: {}".format(type(e).__name__))
+                appendMissingImages(imageFilePath)
 
+        imageFilePath = "data/IML_{}.jpg".format(acqCount)
         try:
-            imageFilePath = "data/IML_{}.jpg".format(acqCount)
             capture(os.path.join(directory, imageFilePath), lowRes=True)
             copyToServer(imageFilePath)
             print("S.Iml")
         except Exception as e:
             logger.info("E.LCam: {}".format(type(e).__name__))
+            appendMissingImages(imageFilePath)
 
         time.sleep(2)
 
@@ -230,6 +278,8 @@ if __name__ == "__main__":
         logger.info("{}s, Shut={}".format(round(time.time() - time0), autoShutdown))
 
         time.sleep(2)
+
+        sendMissingImages()
         sendMissingLogs()
 
     if autoShutdown:
