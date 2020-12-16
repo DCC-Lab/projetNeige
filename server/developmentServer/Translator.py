@@ -53,9 +53,6 @@ class Translator:
     def from_txt_to_detector_ORM(filePath, timeStamp):
         ORMList = []
 
-        timeString = timeStamp.strftime("%Y-%m-%d %H:%M:%S")
-        print(filePath, "at", timeString)
-
         with open(filePath, 'r') as f:
             rawData = [line.rstrip().split(sep=" ") for line in f]
             rawData = [rawData[i:i + 6] for i in range(0, len(rawData), 6)]

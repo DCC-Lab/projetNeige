@@ -93,7 +93,7 @@ def sendImages(files):
 
 def backTrackTime(filePath, index=0, delta=1):
     timeObject = datetime.fromtimestamp(pathlib.Path(filePath).stat().st_ctime)
-    correctTime = timeObject - timedelta(minutes=delta * index)
+    correctTime = timeObject - timedelta(seconds=57 * delta * index)
     shiftTime = correctTime + timedelta(minutes=4)  # opens at 6h56, not 7
     if shiftTime.hour < 7 or shiftTime.hour > 17:
         correctTime = correctTime - timedelta(hours=14)
@@ -102,7 +102,7 @@ def backTrackTime(filePath, index=0, delta=1):
 
 if __name__ == '__main__':
     # Ignore files already on the server
-    # setPastFiles(loadCurrentFiles())
+    setPastFiles(loadCurrentFiles())
 
     while True:
         newFiles, currentFiles = listenForNewFiles()
@@ -121,16 +121,22 @@ if __name__ == '__main__':
             for i, file in enumerate(dataFiles):
                 filePath = os.path.join(serverDir, file)
                 timeStamp = backTrackTime(filePath, index=len(dataFiles) - (i + 1), delta=1)
+                timeString = timeStamp.strftime("%Y-%m-%d %H:%M:%S")
+                print(filePath, "at", timeString)
                 dbc.add_detector_data(filePath, timeStamp)
                 dbc.add_photodiode_power_data(filePath, timeStamp)
             for i, file in enumerate(highResImages):
                 filePath = os.path.join(serverDir, file)
-                dbc.add_highres_image(filePath, backTrackTime(filePath, index=len(highResImages) - (i + 1), delta=60))
-                print("Sent High Res Image")
+                timeStamp = backTrackTime(filePath, index=len(highResImages) - (i + 1), delta=60)
+                timeString = timeStamp.strftime("%Y-%m-%d %H:%M:%S")
+                print(filePath, "at", timeString)
+                dbc.add_highres_image(filePath, timeStamp)
             for i, file in enumerate(lowResImages):
                 filePath = os.path.join(serverDir, file)
-                dbc.add_lowres_image(filePath, backTrackTime(filePath, index=len(lowResImages) - (i + 1), delta=1))
-                print("Sent Low Res Image")
+                timeStamp = backTrackTime(filePath, index=len(lowResImages) - (i + 1), delta=1)
+                timeString = timeStamp.strftime("%Y-%m-%d %H:%M:%S")
+                print(filePath, "at", timeString)
+                dbc.add_lowres_image(filePath, timeStamp)
             dbc.commit_data()
             setPastFiles(currentFiles)
         except Exception as e:
