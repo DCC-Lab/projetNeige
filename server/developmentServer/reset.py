@@ -10,6 +10,11 @@ if __name__ == '__main__':
     allFiles = loadCurrentFiles()
     allFiles.sort(key=timeStampKey)
 
+    # Push a specific time region
+    # startIdx = allFiles.index("PD_13188.txt")
+    # stopIdx = allFiles.index("IML_11867.jpg")
+    # allFiles = allFiles[startIdx: stopIdx+1]
+
     # create batches
     batches = []
     tempBatch = [allFiles[0]]

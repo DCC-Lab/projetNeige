@@ -102,7 +102,7 @@ def backTrackTime(filePath, index=0, delta=1):
 
 if __name__ == '__main__':
     # Ignore files already on the server
-    setPastFiles(loadCurrentFiles())
+    # setPastFiles(loadCurrentFiles())
 
     while True:
         newFiles, currentFiles = listenForNewFiles()
