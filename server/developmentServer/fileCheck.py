@@ -80,10 +80,10 @@ class FileChecker:
                     file.write(str(element))
                     file.write(",")
 
-    def make_data_file_span(self, minDate, maxDate):
+    def make_data_file_span(self, minDate, maxDate, minTime, maxTime):
         rows = []
         with self.dbc.engine.connect() as conn:
-            command = "SELECT * FROM PhotodiodeData WHERE CAST(timeStamp as time) BETWEEN '10:00:00' AND '15:00:00' AND timeStamp BETWEEN '{}' AND '{}' ORDER BY timeStamp".format(minDate, maxDate)
+            command = "SELECT * FROM PhotodiodeData WHERE CAST(timeStamp as time) BETWEEN '{}' AND '{}' AND timeStamp BETWEEN '{}' AND '{}' ORDER BY timeStamp".format(minTime, maxTime, minDate, maxDate)
             conn.execute('USE projetneigedb')
             rs = conn.execute(command)
             for row in rs.fetchall():
@@ -117,4 +117,4 @@ if __name__ == "__main__":
         while 1:
             fc.execute_file_monitoring()
     elif a == 1:
-        fc.make_data_file_span("2021-01-04", "2021-02-04")
+        fc.make_data_file_span("2020-12-04", "2021-01-04", "11:00:00", "14:00:00")
