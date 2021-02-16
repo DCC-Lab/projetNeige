@@ -59,7 +59,7 @@ def sendImages(files):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
-        ssh.connect("70.55.117.196", port=250, username="jlbegin")
+        ssh.connect("74.15.144.100", port=250, username="jlbegin")
         sftp = ssh.open_sftp()
     except Exception as e:
         print("E.SSH: {}".format(type(e).__name__))
