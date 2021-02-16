@@ -1,1 +1,1 @@
-http://70.55.117.196:3000/d/kejs-t0Mk/experimental-site-1-live-data?orgId=1&refresh=10s
+http://74.15.144.100:3000/d/kejs-t0Mk/experimental-site-1-live-data?orgId=1&refresh=10s&from=now-7d&to=now
