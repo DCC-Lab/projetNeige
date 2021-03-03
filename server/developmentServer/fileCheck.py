@@ -4,7 +4,7 @@ from os import listdir
 from os.path import isfile, join, dirname, realpath
 from DatabaseClient import DatabaseClient
 from DatabaseConfigs import internal_databse_config, remote_database_config, localhost_database_config
-import sys
+import pathlib
 import argparse
 
 dataFolderPath = join(dirname(realpath(__file__)), "data")
@@ -18,6 +18,7 @@ class FileChecker:
         self.stopDate = stopDate
         self.missingDates = []
         self.update_time()
+        pathlib.Path(dataFolderPath).mkdir(parents=True, exist_ok=True)
 
     def execute_file_monitoring(self):
         self.update_time()
