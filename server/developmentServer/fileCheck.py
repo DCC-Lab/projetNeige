@@ -3,14 +3,16 @@ import os
 from os import listdir
 from os.path import isfile, join, dirname, realpath
 from DatabaseClient import DatabaseClient
-from DatabaseConfigs import internal_databse_config
+from DatabaseConfigs import internal_databse_config, remote_database_config, localhost_database_config
+import sys
+import argparse
 
 dataFolderPath = join(dirname(realpath(__file__)), "data")
 
 
 class FileChecker:
-    def __init__(self, startDate=None, stopDate=None):
-        self.dbc = DatabaseClient(config=internal_databse_config)
+    def __init__(self, startDate=None, stopDate=None, config=internal_databse_config):
+        self.dbc = DatabaseClient(config=config)
         self.monitorStopDate = None
         self.startDate = startDate
         self.stopDate = stopDate
@@ -23,7 +25,8 @@ class FileChecker:
         self.get_missing_files()
 
     def check_missing_files(self):
-        dates = [dt.datetime.strptime(f.replace(".csv", ""), "%Y-%m-%d").date() for f in listdir(dataFolderPath) if isfile(join(dataFolderPath, f)) and ".csv" in f]
+        dates = [dt.datetime.strptime(f.replace(".csv", ""), "%Y-%m-%d").date() for f in listdir(dataFolderPath) if
+                 isfile(join(dataFolderPath, f)) and ".csv" in f]
         date_set = set(self.startDate + dt.timedelta(x) for x in range((self.monitorStopDate - self.startDate).days))
         self.missingDates = sorted(date_set - set(dates))
 
@@ -37,7 +40,8 @@ class FileChecker:
     def get_missing_files(self):
         for missingDate in self.missingDates:
             with open("{}{}{}.csv".format(dataFolderPath, os.sep, missingDate), "w") as file:
-                file.write("id, unitID, photodiodeID, timeStamp, location, height, wavelength, powerMean, powerSD, digitalNumberMean, digitalNumberSD")
+                file.write(
+                    "id, unitID, photodiodeID, timeStamp, location, height, wavelength, powerMean, powerSD, digitalNumberMean, digitalNumberSD")
                 table = self.get_missing_data(missingDate)
                 for row in table:
                     file.write("\n")
@@ -51,7 +55,8 @@ class FileChecker:
         print("Requesting for missing:", minDate, maxDate)
         rows = []
         with self.dbc.engine.connect() as conn:
-            command = "SELECT * FROM PhotodiodeData WHERE timeStamp BETWEEN '{}' AND '{}' ORDER BY timeStamp".format(minDate, maxDate)
+            command = "SELECT * FROM PhotodiodeData WHERE timeStamp BETWEEN '{}' AND '{}' ORDER BY timeStamp".format(
+                minDate, maxDate)
             conn.execute('USE projetneigedb')
             rs = conn.execute(command)
             for row in rs.fetchall():
@@ -83,7 +88,8 @@ class FileChecker:
     def make_data_file_span(self, minDate, maxDate, minTime, maxTime):
         rows = []
         with self.dbc.engine.connect() as conn:
-            command = "SELECT * FROM PhotodiodeData WHERE CAST(timeStamp as time) BETWEEN '{}' AND '{}' AND timeStamp BETWEEN '{}' AND '{}' ORDER BY timeStamp".format(minTime, maxTime, minDate, maxDate)
+            command = "SELECT * FROM PhotodiodeData WHERE CAST(timeStamp as time) BETWEEN '{}' AND '{}' AND timeStamp BETWEEN '{}' AND '{}' ORDER BY timeStamp".format(
+                minTime, maxTime, minDate, maxDate)
             conn.execute('USE projetneigedb')
             rs = conn.execute(command)
             for row in rs.fetchall():
@@ -111,10 +117,38 @@ class FileChecker:
 
 
 if __name__ == "__main__":
-    fc = FileChecker(startDate=dt.date(2020, 12, 3), stopDate=dt.date(2021, 4, 1))
-    a = 1
-    if a == 0:
-        while 1:
-            fc.execute_file_monitoring()
-    elif a == 1:
-        fc.make_data_file_span("2021-02-02", "2021-03-02", "10:00:00", "14:00:00")
+    parser = argparse.ArgumentParser()
+    gIP = parser.add_argument_group(title='IP options')
+    mxgIP = gIP.add_mutually_exclusive_group(required=True)
+    mxgIP.add_argument("-r", "--remote", help="Get remote ip configuration", action="store_true")
+    mxgIP.add_argument("-l", "--local", help="Get local ip configuration", action="store_true")
+    mxgIP.add_argument("-i", "--internal", help="Get internal ip configuration", action="store_true")
+
+    gF = parser.add_argument_group(title='Functions')
+    mxgF = gF.add_mutually_exclusive_group(required=True)
+    mxgF.add_argument("--check", help="Check if daily file are correctly stored and download them to multiple .csv files", action="store_true", required=False)
+    mxgF.add_argument("--make", nargs=4, metavar=('d1', 'd2', 't1', 't2'),
+                      help=' startDate, endDate, startTime, endTime, Make data file with certain span to a single .csv file', type=str)
+
+    args = parser.parse_args()
+
+    config = None
+    if args.remote:
+        config = remote_database_config
+    elif args.local:
+        config = localhost_database_config
+    elif args.internal:
+        config = internal_databse_config
+
+    fc = FileChecker(startDate=dt.date(2020, 12, 3), stopDate=dt.date.today(), config=config)
+
+    if args.make:
+        try:
+            fc.make_data_file_span(args.make[0], args.make[1], args.make[2], args.make[3])
+            print("File generation successful.")
+
+        except Exception as e:
+            print("FAILED: {}".format(e))
+
+    elif args.check:
+        fc.check_missing_files()
