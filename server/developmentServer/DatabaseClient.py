@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Table
 from DatabaseConfigs import localhost_database_config
-from DatabaseConfigs import remote_database_config
+from DatabaseConfigs import remote_database_config, internal_databse_config
 from Translator import Translator
 from ORM import LowResolutionFeedORM, HighResolutionFeedORM
 from ORMBase import commonBase, localBase
@@ -66,5 +66,5 @@ class DatabaseClient:
 
 
 if __name__ == '__main__':
-    dbc = DatabaseClient(config=remote_database_config)
+    dbc = DatabaseClient(config=internal_databse_config)
     dbc.init_all_tables()
