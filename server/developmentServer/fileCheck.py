@@ -60,6 +60,46 @@ class FileChecker:
 
         return rows
 
+    def make_all_data_file(self):
+        rows = []
+        with self.dbc.engine.connect() as conn:
+            command = "SELECT * FROM PhotodiodeData WHERE CAST(timeStamp as time) BETWEEN '10:00:00' AND '15:00:00' ORDER BY timeStamp;"
+            conn.execute('USE projetneigedb')
+            rs = conn.execute(command)
+            for row in rs.fetchall():
+                row = self.formatPhotodiodeRow(list(row))
+                rows.append(row)
+
+        with open("{}{}{}.csv".format(dataFolderPath, os.sep, "allData"), "w") as file:
+            file.write(
+                "id, unitID, photodiodeID, timeStamp, location, height, wavelength, powerMean, powerSD, digitalNumberMean, digitalNumberSD")
+
+            for row in rows:
+                file.write("\n")
+                for element in row:
+                    file.write(str(element))
+                    file.write(",")
+
+    def make_data_file_span(self, minDate, maxDate, minTime, maxTime):
+        rows = []
+        with self.dbc.engine.connect() as conn:
+            command = "SELECT * FROM PhotodiodeData WHERE CAST(timeStamp as time) BETWEEN '{}' AND '{}' AND timeStamp BETWEEN '{}' AND '{}' ORDER BY timeStamp".format(minTime, maxTime, minDate, maxDate)
+            conn.execute('USE projetneigedb')
+            rs = conn.execute(command)
+            for row in rs.fetchall():
+                row = self.formatPhotodiodeRow(list(row))
+                rows.append(row)
+
+        with open("{}{}{}-{}.csv".format(dataFolderPath, os.sep, minDate, maxDate), "w") as file:
+            file.write(
+                "id, unitID, photodiodeID, timeStamp, location, height, wavelength, powerMean, powerSD, digitalNumberMean, digitalNumberSD")
+
+            for row in rows:
+                file.write("\n")
+                for element in row:
+                    file.write(str(element))
+                    file.write(",")
+
     @staticmethod
     def formatPhotodiodeRow(row):
         row[1] = int(row[1])
@@ -72,6 +112,9 @@ class FileChecker:
 
 if __name__ == "__main__":
     fc = FileChecker(startDate=dt.date(2020, 12, 3), stopDate=dt.date(2021, 4, 1))
-
-    while 1:
-        fc.execute_file_monitoring()
+    a = 1
+    if a == 0:
+        while 1:
+            fc.execute_file_monitoring()
+    elif a == 1:
+        fc.make_data_file_span("2021-02-02", "2021-03-02", "10:00:00", "14:00:00")
