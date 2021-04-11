@@ -126,7 +126,7 @@ if __name__ == "__main__":
     mxgIP.add_argument("-i", "--internal", help="Get internal ip configuration", action="store_true")
 
     gF = parser.add_argument_group(title='Functions')
-    mxgF = gF.add_mutually_exclusive_group(required=True)
+    mxgF = gF.add_mutually_exclusive_group(required=False)
     mxgF.add_argument("--check", help="Check if daily file are correctly stored and download them to multiple .csv files", action="store_true", required=False)
     mxgF.add_argument("--make", nargs=4, metavar=('d1', 'd2', 't1', 't2'),
                       help=' startDate, endDate, startTime, endTime, Make data file with certain span to a single .csv file', type=str)
@@ -141,7 +141,11 @@ if __name__ == "__main__":
     elif args.internal:
         config = internal_databse_config
 
-    fc = FileChecker(startDate=dt.date(2020, 12, 3), stopDate=dt.date.today(), config=config)
+    try:
+        fc = FileChecker(startDate=dt.date(2020, 12, 3), stopDate=dt.date.today(), config=config)
+
+    except Exception as e:
+        print("Server couldn't be located @ IP {}:{}".format(config.server_host, config.server_port))
 
     if args.make:
         try:
@@ -153,3 +157,4 @@ if __name__ == "__main__":
 
     elif args.check:
         fc.check_missing_files()
+

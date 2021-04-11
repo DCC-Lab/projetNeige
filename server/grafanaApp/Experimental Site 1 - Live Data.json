@@ -1,0 +1,4671 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Data acquired by 3G service from the main computer. The data comes from from 8 differents subsystems, thus 32 light sensors monitoring 2 bandwidths.",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 36,
+      "panels": [],
+      "title": "GlobalView",
+      "type": "row"
+    },
+    {
+      "datasource": "projetneigedb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 38,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "/^timeStamp$/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "value"
+      },
+      "pluginVersion": "7.4.1",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT DATE_FORMAT(timeStamp, \"%Y-%m-%d %H:%i:%S\") AS \"timeStamp\"\r\nFROM DetectorUnitsData\r\nORDER BY timeStamp DESC\r\nLIMIT 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pd1DigitalNumberMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "DetectorUnitsData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Last Data TimeStamp",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 4,
+        "y": 1
+      },
+      "id": 41,
+      "options": {
+        "content": "<img src=\"/public/img/lowres.jpg\" alt=\"test\" height=100% width=100%>\n\n",
+        "mode": "html"
+      },
+      "pluginVersion": "7.4.1",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Last Low Resolution Capture",
+      "type": "text"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "projetneigedb",
+      "description": "Blue Power in Shrubs for all heights",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": []
+          },
+          "unit": "Wm2"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "400"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "400nm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "700"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "700nm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "485.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "485mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "325.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "325mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1550.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1550mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1375.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1375mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1200.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1200mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1000.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1000mm"
+              }
+            ]
+          }
+        ]
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 10,
+        "y": 1
+      },
+      "hiddenSeries": false,
+      "id": 43,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "height",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  powerMean AS \"Blue irradiance\",\n  wavelength as metric\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'S' AND\n  wavelength = '400' AND\n  height = \"325.00\"\nORDER BY timeStamp, height DESC;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "powerMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "PhotodiodeData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "location",
+                "=",
+                "'S'"
+              ],
+              "type": "expression"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "wavelength",
+                "=",
+                "'700'"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  powerMean AS \"IR irradiance\",\n  wavelength as metric\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'S' AND\n  wavelength = '700' AND\n  height = \"325.00\"\nORDER BY timeStamp, height DESC;",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "pd1DigitalNumberMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "DetectorUnitsData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "325mm Optical Irradiance in Shrubs",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:834",
+          "format": "Wm2",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:835",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "projetneigedb",
+      "description": "Blue Power in Shrubs for all heights",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": []
+          },
+          "unit": "Wm2"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "400"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "400nm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "700"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "700nm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "485.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "485mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "325.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "325mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1550.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1550mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1375.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1375mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1200.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1200mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1000.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1000mm"
+              }
+            ]
+          }
+        ]
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 17,
+        "y": 1
+      },
+      "hiddenSeries": false,
+      "id": 42,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "height",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  powerMean AS \"Blue irradiance\",\n  wavelength as metric\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'F' AND\n  wavelength = '400' AND\n  height = \"325.00\"\nORDER BY timeStamp, height DESC;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "powerMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "PhotodiodeData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "location",
+                "=",
+                "'S'"
+              ],
+              "type": "expression"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "wavelength",
+                "=",
+                "'700'"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  powerMean AS \"IR irradiance\",\n  wavelength as metric\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'F' AND\n  wavelength = '700' AND\n  height = \"325.00\"\nORDER BY timeStamp, height DESC;",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "pd1DigitalNumberMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "DetectorUnitsData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "325mm Optical Irradiance in Field",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:834",
+          "format": "Wm2",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:835",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": "projetneigedb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 3
+      },
+      "id": 40,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.4.1",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT humidityMean FROM DetectorUnitsData ORDER BY timeStamp DESC LIMIT 8;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pd1DigitalNumberMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "DetectorUnitsData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Last Detectors Mean Humidity",
+      "type": "stat"
+    },
+    {
+      "datasource": "projetneigedb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 6
+      },
+      "id": 26,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.4.1",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT temperatureMean FROM DetectorUnitsData ORDER BY timeStamp DESC LIMIT 8;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pd1DigitalNumberMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "DetectorUnitsData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Last Detectors Mean Temperature",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 32,
+      "panels": [],
+      "title": "Power Data #1",
+      "type": "row"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "projetneigedb",
+      "description": "Blue Power inField for all heights",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "displayName": "powerMean",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": []
+          },
+          "unit": "Wm2"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "850.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "850mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "650.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "650mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "485.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "485mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "325.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "325mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1550.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1550mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1375.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1375mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1200.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1200mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1000.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1000mm"
+              }
+            ]
+          }
+        ]
+      },
+      "fill": 3,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "hiddenSeries": false,
+      "id": 30,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": true,
+        "min": true,
+        "rightSide": false,
+        "show": false,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": false
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "height",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  height AS metric,\n  powerMean\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'F' AND\n  wavelength = '400'\nORDER BY timeStamp, height DESC;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "powerMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "PhotodiodeData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "location",
+                "=",
+                "'S'"
+              ],
+              "type": "expression"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "wavelength",
+                "=",
+                "'700'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Blue Power in Field",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Time",
+                "850.00",
+                "650.00",
+                "485.00",
+                "325.00",
+                "1375.00",
+                "1200.00",
+                "1000.00"
+              ]
+            }
+          }
+        }
+      ],
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1773",
+          "format": "Wm2",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1774",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "projetneigedb",
+      "description": "IR Power inField for all heights",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "displayName": "powerMean",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": []
+          },
+          "unit": "Wm2"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "850.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "850mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "650.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "650mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "485.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "485mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "325.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "325mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1550.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1550mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1375.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1375mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1200.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1200mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1000.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1000mm"
+              }
+            ]
+          }
+        ]
+      },
+      "fill": 3,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "hiddenSeries": false,
+      "id": 37,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": true,
+        "min": true,
+        "rightSide": false,
+        "show": false,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": false
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "height",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  height AS metric,\n  powerMean\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'F' AND\n  wavelength = '700'\nORDER BY timeStamp, height DESC;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "powerMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "PhotodiodeData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "location",
+                "=",
+                "'S'"
+              ],
+              "type": "expression"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "wavelength",
+                "=",
+                "'700'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "IR Power in Field",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1773",
+          "format": "Wm2",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1774",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "projetneigedb",
+      "description": "Blue Power in Shrubs for all heights",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "displayName": "powerMean",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": []
+          },
+          "unit": "Wm2"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "850.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "850mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "650.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "650mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "485.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "485mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "325.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "325mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1550.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1550mm"
+              },
+              {
+                "id": "links"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1375.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1375mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1200.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1200mm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1000.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1000mm"
+              }
+            ]
+          }
+        ]
+      },
+      "fill": 3,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "hiddenSeries": false,
+      "id": 34,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": true,
+        "min": true,
+        "rightSide": false,
+        "show": false,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": false
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "height",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  height AS metric,\n  powerMean\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'S' AND\n  wavelength = '400'\nORDER BY timeStamp, height DESC;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "powerMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "PhotodiodeData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "location",
+                "=",
+                "'S'"
+              ],
+              "type": "expression"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "wavelength",
+                "=",
+                "'700'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Blue Power in Shrubs",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Time",
+                "850.00",
+                "650.00",
+                "485.00",
+                "325.00",
+                "1375.00",
+                "1200.00",
+                "1000.00"
+              ]
+            }
+          }
+        }
+      ],
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1773",
+          "format": "Wm2",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1774",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "projetneigedb",
+      "description": "IR Power in Shrubs for all heights",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": []
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pd1DigitalNumberMean"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "700nm Tall"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pd2DigitalNumberMean"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "400nm Tall"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pd3DigitalNumberMean"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "700nm Short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pd4DigitalNumberMean"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "400nm Short"
+              }
+            ]
+          }
+        ]
+      },
+      "fill": 3,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "hiddenSeries": false,
+      "id": 29,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": true,
+        "min": true,
+        "rightSide": false,
+        "show": false,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": false
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "height",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  height AS metric,\n  powerMean\nFROM PhotodiodeData\nWHERE\n  $__timeFilter(timeStamp) AND\n  location = 'S' AND\n  wavelength = '700'\nORDER BY timeStamp, height DESC;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "powerMean"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "PhotodiodeData",
+          "timeColumn": "timeStamp",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "location",
+                "=",
+                "'S'"
+              ],
+              "type": "expression"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "wavelength",
+                "=",
+                "'700'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "IR Power in Shrubs",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1773",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1774",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 48,
+      "panels": [
+        {
+          "bgColor": "rgb(255, 255, 255)",
+          "datasource": "projetneigedb",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 15,
+            "w": 12,
+            "x": 0,
+            "y": 11
+          },
+          "id": 45,
+          "pluginVersion": "7.3.4",
+          "radarSettings": {
+            "animationDurationMs": "30",
+            "aspectRatio": 1.8,
+            "autoScale": false,
+            "drawTicksBackground": true,
+            "fontColor": "#FADE2A",
+            "fontSize": "20",
+            "gridColor": "rgb(176, 176, 176)",
+            "ignoreTimeInfluxDB": false,
+            "legendType": "right",
+            "limitAspectRatio": true,
+            "scaleMax": "4",
+            "scaleMin": "-0.5",
+            "scaleStep": "0.5",
+            "seriesAlias": "A=400nm;B=700nm"
+          },
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "height",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  $__time(timeStamp),\n  height AS metric,\n  powerMean\nFROM PhotodiodeData\nWHERE\n   wavelength='400' AND\n  location = 'F'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "powerMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "PhotodiodeData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "datetime",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  $__time(timeStamp),\n  powerMean,\n  height as metric\nFROM PhotodiodeData\nWHERE\n  wavelength='700' AND\n  location = 'F'\nORDER BY timeStamp;",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Field Irradiance Radar Plot",
+          "transformations": [],
+          "type": "snuids-radar-panel"
+        },
+        {
+          "bgColor": "rgb(255, 255, 255)",
+          "datasource": "projetneigedb",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 15,
+            "w": 12,
+            "x": 12,
+            "y": 11
+          },
+          "id": 46,
+          "pluginVersion": "7.3.4",
+          "radarSettings": {
+            "animationDurationMs": "30",
+            "aspectRatio": 1.8,
+            "autoScale": false,
+            "drawTicksBackground": true,
+            "fontColor": "#FADE2A",
+            "fontSize": "20",
+            "gridColor": "rgb(176, 176, 176)",
+            "ignoreTimeInfluxDB": false,
+            "legendType": "right",
+            "limitAspectRatio": true,
+            "scaleMax": "4",
+            "scaleMin": "-0.5",
+            "scaleStep": "0.5",
+            "seriesAlias": "A=400nm;B=700nm"
+          },
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "height",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  $__time(timeStamp),\n  height AS metric,\n  powerMean\nFROM PhotodiodeData\nWHERE\n   wavelength='400' AND\n  location = 'S'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "powerMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "PhotodiodeData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "datetime",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  $__time(timeStamp),\n  powerMean,\n  height as metric\nFROM PhotodiodeData\nWHERE\n  wavelength='700' AND\n  location = 'S'\nORDER BY timeStamp;",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Shrubs Irradiance Radar Plot",
+          "transformations": [],
+          "type": "snuids-radar-panel"
+        }
+      ],
+      "title": "Power Data #2",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 6,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 1",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 12
+          },
+          "hiddenSeries": false,
+          "id": 9,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '1'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'1'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '1'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'1'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '1'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'1'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '1'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'1'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 1",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 2",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 12
+          },
+          "hiddenSeries": false,
+          "id": 10,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '2'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'2'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '2'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'2'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '2'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'2'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '2'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'2'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 2",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 3",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 12
+          },
+          "hiddenSeries": false,
+          "id": 11,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '3'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'3'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '3'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'3'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '3'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'3'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '3'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'3'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 3",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 4",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 12
+          },
+          "hiddenSeries": false,
+          "id": 12,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '4'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'4'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '4'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'4'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '4'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'4'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '4'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'4'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 4",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 5",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 20
+          },
+          "hiddenSeries": false,
+          "id": 13,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '5'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'5'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '5'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'5'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '5'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'5'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '5'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'5'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 5",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 6",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 20
+          },
+          "hiddenSeries": false,
+          "id": 14,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '6'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'6'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '6'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'6'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '6'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'6'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '6'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'6'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 6",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 7",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 20
+          },
+          "hiddenSeries": false,
+          "id": 15,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '7'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'7'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '7'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'7'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '7'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'7'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '7'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'7'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 7",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "projetneigedb",
+          "description": "Cierge 8",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd1DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd2DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Short"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd3DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "700nm Tall"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pd4DigitalNumberMean"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "400nm Tall"
+                  }
+                ]
+              }
+            ]
+          },
+          "fill": 3,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 20
+          },
+          "hiddenSeries": false,
+          "id": 16,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd1DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '8'\nORDER BY timeStamp",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd1DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'8'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd4DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '8'\nORDER BY timeStamp",
+              "refId": "D",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd4DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'8'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd2DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '8'\nORDER BY timeStamp",
+              "refId": "B",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd2DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'8'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            },
+            {
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  UNIX_TIMESTAMP(timeStamp) AS \"time\",\n  pd3DigitalNumberMean\nFROM DetectorUnitsData\nWHERE\n  $__timeFilter(timeStamp) AND\n  unitID = '8'\nORDER BY timeStamp",
+              "refId": "C",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "pd3DigitalNumberMean"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "DetectorUnitsData",
+              "timeColumn": "timeStamp",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                },
+                {
+                  "datatype": "varchar",
+                  "name": "",
+                  "params": [
+                    "unitID",
+                    "=",
+                    "'8'"
+                  ],
+                  "type": "expression"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cierge 8",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:1773",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": "1050",
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:1774",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
+      "title": "RAW DATA",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 50,
+      "panels": [],
+      "title": "Images",
+      "type": "row"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 33
+      },
+      "id": 51,
+      "options": {
+        "content": "<img src=\"/public/img/lowres.jpg\" alt=\"test\" height=100% width=100%>\n\n",
+        "mode": "html"
+      },
+      "pluginVersion": "7.4.1",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Last Low Resolution Capture",
+      "type": "text"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 23,
+        "w": 16,
+        "x": 6,
+        "y": 33
+      },
+      "id": 52,
+      "options": {
+        "content": "<img src=\"/public/img/highres.jpg\" alt=\"test\" height=100% width=100%>\n\n",
+        "mode": "html"
+      },
+      "pluginVersion": "7.4.1",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Last High Resolution Capture",
+      "type": "text"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": false,
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "Experimental Site 1 - Live Data",
+  "uid": "kejs-t0Mk",
+  "version": 56
+}
