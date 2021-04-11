@@ -1,5 +1,6 @@
 import datetime as dt
 import os
+import socket
 from os import listdir
 from os.path import isfile, join, dirname, realpath
 from DatabaseClient import DatabaseClient
@@ -142,10 +143,28 @@ if __name__ == "__main__":
         config = internal_databse_config
 
     try:
+        a_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        a_socket.settimeout(3)
+        location = (config.server_host, config.server_port)
+        result_of_check = a_socket.connect_ex(location)
+
+        if result_of_check != 0:
+            print(f"TCP ERROR {result_of_check}")
+
+        if result_of_check == 0:
+            print("Host {} reachable and port {} is open".format(config.server_host, config.server_port))
+
+        elif result_of_check == 10061:
+            print("Host {} reachable but actively refused connection on port {}.".format(config.server_host, config.server_port))
+
+        else:
+            print("Host {} is not reachable or port {} has dropped packed.".format(config.server_host, config.server_port))
+            raise Exception
+
         fc = FileChecker(startDate=dt.date(2020, 12, 3), stopDate=dt.date.today(), config=config)
 
     except Exception as e:
-        print("Server couldn't be located @ IP {}:{}".format(config.server_host, config.server_port))
+        print(e)
 
     if args.make:
         try:
@@ -157,4 +176,8 @@ if __name__ == "__main__":
 
     elif args.check:
         fc.check_missing_files()
+
+    else:
+        pass
+
 
