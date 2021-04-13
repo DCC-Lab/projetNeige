@@ -7,6 +7,7 @@ from DatabaseClient import DatabaseClient
 from DatabaseConfigs import internal_databse_config, remote_database_config, localhost_database_config
 import pathlib
 import argparse
+import pandas as pd
 
 dataFolderPath = join(dirname(realpath(__file__)), "data")
 
@@ -116,6 +117,63 @@ class FileChecker:
         row[5] = float(row[5])
         row[6] = int(row[6])
         return row
+
+
+    def make_pivot_csv_file(self, filePath):
+        pivot_df = pd.DataFrame(columns=['timestamp','11_avg', '11_sd'
+,'12_avg', '12_sd'
+,'13_avg', '13_sd'
+,'14_avg', '14_sd'
+,'21_avg', '21_sd'
+,'22_avg', '22_sd'
+,'23_avg', '23_sd'
+,'24_avg', '24_sd'
+,'31_avg', '31_sd'
+,'32_avg', '32_sd'
+,'33_avg', '33_sd'
+,'34_avg', '34_sd'
+,'41_avg', '41_sd'
+,'42_avg', '42_sd'
+,'43_avg', '43_sd'
+,'44_avg', '44_sd'
+,'51_avg', '51_sd'
+,'52_avg', '52_sd'
+,'53_avg', '53_sd'
+,'54_avg', '54_sd'
+,'61_avg', '61_sd'
+,'62_avg', '62_sd'
+,'63_avg', '63_sd'
+,'64_avg', '64_sd'
+,'71_avg', '71_sd'
+,'72_avg', '72_sd'
+,'73_avg', '73_sd'
+,'74_avg', '74_sd'
+,'81_avg', '81_sd'
+,'82_avg', '82_sd'
+,'83_avg', '83_sd'
+,'84_avg', '84_sd'])
+
+        df = pd.read_csv(filePath)
+        lasttime = None
+        for index, row in df.iterrows():
+            current = row["timestamp"]
+
+            if current != lasttime:
+                pivot_df.append({'timestamp': current}, ignore_index=True)
+                i = row["unitID"]
+                j = row["photodiodeID"]
+                avg = row["powerMean"]
+                sd = row["powerSD"]
+                pivot_df.loc[current] = pd.Series({f'{i}{j}_avg': avg, f'{i}{j}_sd': sd})
+
+            elif current == lasttime:
+                i = row["unitID"]
+                j = row["photodiodeID"]
+                avg = row["powerMean"]
+                sd = row["powerSD"]
+                pivot_df.loc[current] = pd.Series({f'{i}{j}_avg': avg, f'{i}{j}_sd': sd})
+
+            lasttime = current
 
 
 if __name__ == "__main__":
