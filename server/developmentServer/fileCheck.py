@@ -130,7 +130,7 @@ if __name__ == "__main__":
     mxgF = gF.add_mutually_exclusive_group(required=False)
     mxgF.add_argument("--check", help="Check if daily file are correctly stored and download them to multiple .csv files", action="store_true", required=False)
     mxgF.add_argument("--make", nargs=4, metavar=('d1', 'd2', 't1', 't2'),
-                      help=' startDate, endDate, startTime, endTime, Make data file with certain span to a single .csv file', type=str)
+                      help=' startDate(Y-m-d), endDate, startTime(H:M:S), endTime, Make data file with certain span to a single .csv file', type=str)
 
     args = parser.parse_args()
 
