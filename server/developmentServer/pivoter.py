@@ -1,5 +1,5 @@
 import pandas as pd
-
+import time
 
 def make_pivot_csv_file(filePath):
     pivot_df = pd.DataFrame(columns=["timestamp", "11_avg", "11_sd", "12_avg", "12_sd", "13_avg", "13_sd"
@@ -10,15 +10,15 @@ def make_pivot_csv_file(filePath):
 , "74_avg", "74_sd", "81_avg", "81_sd", "82_avg", "82_sd", "83_avg", "83_sd", "84_avg", "84_sd"])
 
     df = pd.read_csv(filePath, index_col=False, header=0)
-    # with pd.option_context('display.max_columns', None):  # more options can be specified also
-        # print(df)
     last = None
     toPush = {}
+    time = None
 
     for index, row in df.iterrows():
         current = row[" timeStamp"]
 
         if last is None:
+            time1 = time.time_ns()
             last = current
 
         if current != last:
@@ -44,13 +44,14 @@ def make_pivot_csv_file(filePath):
             toPush[f"{i}{j}_avg"] = avg
             toPush[f"{i}{j}_sd"] = sd
 
-        if index % 10000 == 0:
-            a = index * 100 / df.shape[0]
-            print(f"{a:.2f}%")
+        if (index+1) % int(0.05*df.shape[0]) < 1:
+            a = (index+1) / (df.shape[0]+1)
+            time2 = time.time_ns()
+            print(f"est. time:{-((time2-time1)-(time2-time1)/a)/1e9:.2f} sec :: {a*100:.2f}%")
 
         last = current
 
     print(pivot_df)
-    df.to_csv('pivotted_all_data.csv', index=False)
+    pivot_df.to_csv('pivotted_all_data.csv', index=False)
 
-make_pivot_csv_file("C:/Users/dcclab/Documents/Github/projetNeige/server/developmentServer/data/2020-12-04-2021-04-10.csv")
+make_pivot_csv_file("/Users/marc-andrevigneault/Documents/Github/DCCLAB/projetNeige/server/developmentServer/data/2020-12-05-2021-04-10.csv")
