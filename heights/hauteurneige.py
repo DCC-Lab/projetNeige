@@ -65,14 +65,14 @@ def store_heights_pandacsv(file, rows, heights):
         dates.append(date)
     all_heights = {'date': dates, 'height': heights}
     all_heights = pd.DataFrame(all_heights)
-    all_heights.to_csv(f"heights{file[-3:]}.csv", header=False, index=False)
+    all_heights.to_csv(f"heights{file[-3:]}.csv", index=False)
     return all_heights
 
 
 rows = []
 heights = []
 #write the file name here:
-file = 'PlotwithrefAlignCT1'
+file = 'PlotAlign'
 
 if file == 'PlotwithrefAlignIFM':
     scale = [1, 200, 1]
@@ -145,7 +145,7 @@ elif file == 'PlotAlignCT2':
         elif row+1 >= 10:
             scale = [50, 100, 1]
         else:
-            scale = None
+            scale = [150, 180, 1]
 
 elif file == 'PlotwithrefAlignCT3':
     scale = [150, 300, 1]
@@ -166,5 +166,8 @@ elif file == 'PlotwithrefAlignCT3':
             scale = [0, 50, 1]
         else:
             scale = [height-35, height+20, 1]
+
+else:
+    raise NotImplementedError
 
 print(store_heights_pandacsv(file, rows, heights))
