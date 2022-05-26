@@ -3,7 +3,7 @@ import os
 import glob
 from datetime import datetime as dt
 
-def Exceltocsv(path, name, headers, rows=None, colums=None,):
+def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, colums=None,):
     """read an Excel file and transform the useful data in a csv
     
     path: str of the path of the file
@@ -15,8 +15,7 @@ def Exceltocsv(path, name, headers, rows=None, colums=None,):
 
     return the data and save a csv
     """
-    data = pd.read_excel(path, names=headers, usecols=colums, nrows=rows, na_values='na')
-    data = data.dropna()
+    data = pd.read_excel(path, header=header, names=headers, sheet_name=sheet_name, usecols=colums, nrows=rows, na_values='na')
     data.to_csv(f"{name}.csv", index=False)
     return data
 
@@ -29,12 +28,12 @@ def joincsvfiles(path, common, newname):
 
     return the dataframe and save a csv
     """
-    #takes the files and put them in a list
+    # takes the files and put them in a list
     files_joined = os.path.join(path, f"*{common}*.csv")
     list_files = glob.glob(files_joined)
-    #join the files in a dataframe panda
+    # join the files in a dataframe panda
     dataFrame = pd.concat(map(pd.read_csv, list_files))
-    #save the dataframe in a csv
+    # save the dataframe in a csv
     dataFrame.to_csv(f"{newname}.csv", index=False)
     return dataFrame
 
@@ -47,12 +46,12 @@ def renamefiles_asDanwishes(path):
     (nothing is return)
     """
     names = os.listdir(path)
-    #Here I assume that the new files put in the folder were created/updated today, you can change it as you wish
+    # Here I assume that the new files put in the folder were created/updated today, you can change it as you wish
     date = dt.today().strftime("%Y%m%d")
     for name in names:
         nfc = os.path.join(path, name)
-        #I know that I have only files of this year in my folder and no "ID" contains "2022" in the name, except those who are already renamed
-        #you must add other exceptions for other years if that is the case
+        # I know that I have only files of this year in my folder and no "ID" contains "2022" in the name, except those who are already renamed
+        # you must add other exceptions for other years if that is the case
         if "2022" not in name:
             os.rename(nfc, os.path.join(path, f"{date}-" + name))
 
@@ -72,19 +71,96 @@ def add_id(path, name_id, id, newname):
     df.to_csv(f"{newname}.csv", index=False)
     return df
 
-def stripcolums(path, newname, colum):
+def stripcolums(path, newname, colums):
     """delete colums of the file chosen
     
     path: str of the path of the file
     newname: name of the file modified
-    colum: list of the lower and upper bound of the colums we want to keep
+    colums: list of the name of the colums we want to delete
 
     return the dataframe and save csv
     """
     df = pd.read_csv(path, header=0)
-    df = df.iloc[:, colum[0]:colum[1]]
+    for col in colums:
+        df.pop(col)
     df.to_csv(f"{newname}.csv", index=False)
     return df
 
+def find_date(path, date, newname, headers, cols=None):
+    """take only the data from a specific date
+    
+    path: str of the path of the file
+    date: str of the part of time we want to regroup (ex: '2021-01', all of the data in january)
+    newname: name of the file with the data filtred
+    headers: name of the colums of the new file
+    cols: list of the colums' index we want to conserve, all by default
+
+    return the dataframe and save csv
+    """
+    df = pd.read_csv(path, header=0)
+    rows_to_keep = []
+    for i, datehour in enumerate(df['date']):
+        if date in datehour:
+            rows_to_keep.append(i+1)
+    data = pd.read_csv(path, header=None, usecols=cols, skiprows= lambda x: x not in rows_to_keep)
+    data.to_csv(f"{newname}.csv", index=False, header=headers)
+    return data
+
+def normalize_file(path):
+    """normalize irradiance data according to the max value of the data
+    
+    path: str of the path of the file
+
+    return the datafram and update the csv file
+    """
+    df = pd.read_csv(path)
+    ira = df.irradiance
+    max_ira = max(ira)
+    norm_ira = []
+    for value in ira:
+        norm_ira.append(value/max_ira)
+    df['irradiance self-normalized'] = norm_ira
+    df.to_csv(path, index=False)
+    return df
+
+def normalize_irradiance(path, pathref, newname):
+    """normalize irradiance data according to a certain reference (i0)
+    
+    path: str of the path of the file in question
+    pathref: str of the path of the file who is the reference
+    newname: name of the file with the irradiance normalized
+
+    return the dataframe and save csv
+    """
+    # find corresponding reference
+    bigref = pd.read_csv(pathref)
+    dates = pd.read_csv(path).date.tolist()
+    rows_to_keep = []
+    for i, datehour in enumerate(bigref['date']):
+        if datehour in dates:
+            rows_to_keep.append(i+1)
+    ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[:][2]#.tolist()
+    ira = pd.read_csv(path)['irradiance self-normalized'].tolist()
+    # norm_ira = []
+    # a = []
+    # # calculate the normalized irradiance
+    # for i in range(len(ira)):
+    #     if ref[i] == 0:
+    #         norm_ira.append(0)
+    #     else:
+    #         norm_ira.append(ira[i]/ref[i])
+    #         if ira[i]/ref[i] > 1:
+    #             a.append(ira[i]/ref[i])
+    # # store the result
+    # norm_ira = pd.DataFrame({'date': dates, 'irradiance i0-normalized': norm_ira})
+    # norm_ira.to_csv(f"{newname}.csv", index=False)
+    return ref #(a, len(a))
+
+
 #enter your path here
-path = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsAM.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F1000.csv'
+newname = '400F650_normalizedwith1000'
+headers = ['date', 'irradiance']
+
+print(normalize_irradiance(path1, path2, newname))
