@@ -22,36 +22,41 @@ def graphheight(path, color=None, realNames=None, constant=None):
                     fig.data[i][elem] = realNames[dict[elem]]
     return fig
 
-def twograhs(path1, path2, title, norm):
+def twograhs(path1, path2, title, yaxis):
     """make a plotly scatter with 2 csv files on the same graph
     
-    path1: str of the path of the file of the irradiance
-    path2: str of the path of the file of the height
+    path1: str of the path of the first file 
+    path2: str of the path of the second file
+    title: title ot the graph
+    yaxis: list of the names of the data column of each file
 
     return the figure
     """
     data1 = pd.read_csv(path1)
     data2 = pd.read_csv(path2)
 
-    trace1 = go.Scatter(x=data1['date'], y=data1[f'irradiance {norm}-normalized'], mode='markers', name='irradiance')
-    trace2 = go.Scatter(x=data2['date'], y=data2['height'], yaxis="y2", mode='markers', name='height')
+    trace1 = go.Scatter(x=data1['date'], y=data1[yaxis[0]], mode='markers', name=yaxis[0])
+    trace2 = go.Scatter(x=data2['date'], y=data2[yaxis[1]], yaxis="y2", mode='markers', name=yaxis[1])
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(trace1)
     fig.add_trace(trace2,secondary_y=True)
     fig.update_layout(title_text=title)
     fig.update_xaxes(title_text="date")
-    fig.update_yaxes(title_text=f"irradiance {norm}-normalized", secondary_y=False)
-    fig.update_yaxes(title_text="height (cm)", secondary_y=True)
+    fig.update_yaxes(title_text=yaxis[0], secondary_y=False)
+    fig.update_yaxes(title_text=yaxis[1], secondary_y=True)
     return fig
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_normalizedwith1200.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
-title = "Irradiance (400F650) and height (ACFM) of snow over time (2020-2021)"
-norm = 'i0'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\ILWR.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\OLWR.csv'
+# title = "Irradiance (400F650) and height (ACFM) of snow over time (2020-2021)"
+title = "ilwr et olwr"
+norm = '?'
+yaxis = ['ilwr', 'olwr']
+
 #show and save figure
-fig = twograhs(path1, path2, title, norm)
+fig = twograhs(path1, path2, title, yaxis)
 fig.show()
-# fig.write_image('all_400F650+heightsACFM_norm1200.png')
+# fig.write_image('all_400F650+heightsACFM_norm.png')
