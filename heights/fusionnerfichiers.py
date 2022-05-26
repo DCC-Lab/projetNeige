@@ -9,6 +9,8 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, colums=No
     path: str of the path of the file
     name: name of the csv file
     headers: list of the names of the colums in the dataframe (must have the same number of colums entered)
+    sheet_name: str or int of the Excel sheet we want to use (the first by default)
+    header: last row of the heading where there's not data but for example the name of the colums (0 by default)
     rows: int of the number of the rows we want to store (all by default)
     colums: str of the letter of the solums we want to store (all by default) -- EX: 'A,K' (colums A and K) 
                                                                                      'A-K' (colums A to K)
@@ -43,7 +45,8 @@ def renamefiles_asDanwishes(path):
     and you must delete one of the version to continue (no duplicate will be created!)
 
     path: str of the path to the folder
-    (nothing is return)
+    
+    nothing is return but a confirmation is printed to say that it has been donne
     """
     names = os.listdir(path)
     # Here I assume that the new files put in the folder were created/updated today, you can change it as you wish
@@ -54,6 +57,7 @@ def renamefiles_asDanwishes(path):
         # you must add other exceptions for other years if that is the case
         if "2022" not in name:
             os.rename(nfc, os.path.join(path, f"{date}-" + name))
+    print("It's done! Yeah :)")
 
 def add_id(path, name_id, id, newname):
     """add a colum of the same id to all the data of the file chosen
@@ -139,28 +143,28 @@ def normalize_irradiance(path, pathref, newname):
     for i, datehour in enumerate(bigref['date']):
         if datehour in dates:
             rows_to_keep.append(i+1)
-    ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[:][2]#.tolist()
+    ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[:][2].tolist()
     ira = pd.read_csv(path)['irradiance self-normalized'].tolist()
-    # norm_ira = []
-    # a = []
-    # # calculate the normalized irradiance
-    # for i in range(len(ira)):
-    #     if ref[i] == 0:
-    #         norm_ira.append(0)
-    #     else:
-    #         norm_ira.append(ira[i]/ref[i])
-    #         if ira[i]/ref[i] > 1:
-    #             a.append(ira[i]/ref[i])
-    # # store the result
-    # norm_ira = pd.DataFrame({'date': dates, 'irradiance i0-normalized': norm_ira})
-    # norm_ira.to_csv(f"{newname}.csv", index=False)
-    return ref #(a, len(a))
+    norm_ira = []
+    eff_ref = []
+    # calculate the normalized irradiance
+    for i in range(len(ira)):
+        if ref[i] == 0:
+            norm_ira.append(0)
+        else:
+            norm_ira.append(ira[i]/ref[i])
+            if ira[i]/ref[i] > 2:
+                eff_ref.append(ira[i]/ref[i])
+    # store the result
+    norm_ira = pd.DataFrame({'date': dates, 'irradiance i0-normalized': norm_ira})
+    norm_ira.to_csv(f"{newname}.csv", index=False)
+    return (len(eff_ref), max(eff_ref))
 
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F1000.csv'
-newname = '400F650_normalizedwith1000'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\DATA-Ordered2.xlsx'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\700S1500.csv'
+newname = '400F650_normalized'
 headers = ['date', 'irradiance']
 
-print(normalize_irradiance(path1, path2, newname))
+print(normalize_file(path2))
