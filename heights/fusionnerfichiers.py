@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import glob
 from datetime import datetime as dt
+import numpy as np
 
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, colums=None,):
     """read an Excel file and transform the useful data in a csv
@@ -160,11 +161,52 @@ def normalize_irradiance(path, pathref, newname):
     norm_ira.to_csv(f"{newname}.csv", index=False)
     return (len(eff_ref), max(eff_ref))
 
+def norm_CRN4(path, crn4):
+    crn4 = pd.read_csv(crn4, header=0)
+    cap = pd.read_csv(path, header=0)
+    array = np.array([[0 for _ in range(20)]])
+    for i, dcrn in enumerate(crn4['date']):
+        if crn4['iswr self-normalized'][i] != 0:
+            liste = [] # erreur ici
+            for j, dcap in enumerate(cap['date']):
+                if same_date(dcrn, dcap):
+                    liste.append(cap['irradiance self-normalized'][j])
+            while len(liste) < 20:
+                liste.append(0)
+            array = np.append(array, [liste], axis=0) # en lien avec ceci
+        else:
+            array = np.append(array, [[0 for _ in range(20)]], axis=0)
+        print(i/14689*100)
+    file = pd.DataFrame(array[1:][:])
+    file.to_csv(f"array.csv", index=False)
+    return array[1:][:]
+
+def same_date(s1, s2):
+    """find the difference between 2 dates and return True if the difference is less than 4 minutes, no matter the order the dates are entered (if not retrun False)
+    s1: str of the first date of format '%Y-%m-%d %H:%M:%S'
+    s2: str of the second date of format '%Y-%m-%d %H:%M:%S'
+
+    return un bool
+    """
+    date1 = dt.strptime(s1, '%Y-%m-%d %H:%M:%S')
+    date2 = dt.strptime(s2, '%Y-%m-%d %H:%M:%S')
+    a = (date2 - date1).total_seconds()
+    if a <= 240 and a >= -240:
+        return True
+    return False
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\DATA-Ordered2.xlsx'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\700S1500.csv'
-newname = '400F650_normalized'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\ISWR.csv'
+newname = '400F650_normalizedwithiswr'
 headers = ['date', 'irradiance']
 
-print(normalize_file(path2))
+print(norm_CRN4(path1, path2))
+# array = np.array([[0 for _ in range(4)]])
+# liste = [1, 5, 9]
+# while len(liste) < 4:
+#     liste.append(0)
+# array = np.append(array, [liste], axis=0)
+# file = pd.DataFrame(array[1:][:])
+# file.to_csv(f"array.csv", index=False)
+# print(array)
