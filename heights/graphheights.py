@@ -41,7 +41,7 @@ def twograhs(path1, path2, title, yaxis):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(trace1)
     fig.add_trace(trace2,secondary_y=True)
-    fig.update_layout(title_text=title)
+    fig.update_layout(title_text=title, yaxis_range=[0, 2])
     fig.update_xaxes(title_text="date")
     fig.update_yaxes(title_text=yaxis[0], secondary_y=False)
     fig.update_yaxes(title_text=yaxis[1], secondary_y=True)
@@ -49,14 +49,14 @@ def twograhs(path1, path2, title, yaxis):
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\ILWR.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\OLWR.csv'
-# title = "Irradiance (400F650) and height (ACFM) of snow over time (2020-2021)"
-title = "ilwr et olwr"
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_normalizedwith1375.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
+title = "Irradiance (400F650) and height (ACFM) of snow over time (2020-2021)"
+# title = "iswr et rswr"
 norm = '?'
-yaxis = ['ilwr', 'olwr']
-
+yaxis = ['irradiance i0-normalized', 'height']
+# yaxis = ['iswr self-normalized', 'height']
 #show and save figure
 fig = twograhs(path1, path2, title, yaxis)
 fig.show()
-# fig.write_image('all_400F650+heightsACFM_norm.png')
+fig.write_image('all_400F650+heightsACFM_norm1375.png')
