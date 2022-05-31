@@ -49,14 +49,15 @@ def twograhs(path1, path2, title, yaxis):
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_normalizedwith1375.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
 path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
-title = "Irradiance (400F650) and height (ACFM) of snow over time (2020-2021)"
-# title = "iswr et rswr"
-norm = '?'
-yaxis = ['irradiance i0-normalized', 'height']
+title = "Irradiance (400F650) and height (ACFM) of snow each 15min (2020-2021)"
+# title = "Irradiance (CRN4) and height (ACFM) of snow over time (2020-2021)"
+yaxis = ['mean_norm', 'height']
 # yaxis = ['iswr self-normalized', 'height']
+
 #show and save figure
 fig = twograhs(path1, path2, title, yaxis)
 fig.show()
-fig.write_image('all_400F650+heightsACFM_norm1375.png')
+fig.write_html('all_400F650+heightsACFM_normcrn4moy.html')
+
