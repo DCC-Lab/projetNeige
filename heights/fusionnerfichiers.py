@@ -3,8 +3,9 @@ import os
 import glob
 from datetime import datetime as dt
 import numpy as np
+import ast
 
-def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, colums=None,):
+def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, colums=None,):
     """read an Excel file and transform the useful data in a csv
     
     path: str of the path of the file
@@ -16,9 +17,9 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, colums=No
     colums: str of the letter of the solums we want to store (all by default) -- EX: 'A,K' (colums A and K) 
                                                                                      'A-K' (colums A to K)
 
-    return the data and save a csv
+    return the dataframe and save a csv
     """
-    data = pd.read_excel(path, header=header, names=headers, sheet_name=sheet_name, usecols=colums, nrows=rows, na_values='na')
+    data = pd.read_excel(path, header=header, names=headers, sheet_name=sheet_name, usecols=colums, skiprows = startrow, nrows=rows, na_values='na')
     data.to_csv(f"{name}.csv", index=False)
     return data
 
@@ -47,7 +48,7 @@ def renamefiles_asDanwishes(path):
 
     path: str of the path to the folder
     
-    nothing is return but a confirmation is printed to say that it has been donne
+    nothing is return but a confirmation is printed to say that it has been done
     """
     names = os.listdir(path)
     # Here I assume that the new files put in the folder were created/updated today, you can change it as you wish
@@ -58,22 +59,22 @@ def renamefiles_asDanwishes(path):
         # you must add other exceptions for other years if that is the case
         if "2022" not in name:
             os.rename(nfc, os.path.join(path, f"{date}-" + name))
-    print("It's done! Yeah :)")
+    print("It's done!")
+    return "Yeah :)"
 
-def add_id(path, name_id, id, newname):
+def add_id(path, name_id, id):
     """add a colum of the same id to all the data of the file chosen
     
     path: str of the path of the file
     name_id: name of the colum we add
     id: str or value of the id
-    newname: name of the file modified
     
     return the dataframe and save csv
     """
     df = pd.read_csv(path, header=0)
     rows = df.shape[0]
     df[name_id] = [id for _ in range(rows)]
-    df.to_csv(f"{newname}.csv", index=False)
+    df.to_csv(path, index=False)
     return df
 
 def stripcolums(path, newname, colums):
@@ -129,13 +130,13 @@ def normalize_file(path):
     return df
 
 def normalize_irradiance(path, pathref, newname):
-    """normalize irradiance data according to a certain reference (i0)
+    """normalize irradiance data according to a certain reference (i0) who have the same timestamp
     
     path: str of the path of the file in question
     pathref: str of the path of the file who is the reference
     newname: name of the file with the irradiance normalized
 
-    return the dataframe and save csv
+    return the efficienty of the normalization (number of values greater than 2 and the maximum value) and save csv
     """
     # find corresponding reference
     bigref = pd.read_csv(pathref)
@@ -161,52 +162,95 @@ def normalize_irradiance(path, pathref, newname):
     norm_ira.to_csv(f"{newname}.csv", index=False)
     return (len(eff_ref), max(eff_ref))
 
-def norm_CRN4(path, crn4):
-    crn4 = pd.read_csv(crn4, header=0)
-    cap = pd.read_csv(path, header=0)
-    array = np.array([[0 for _ in range(20)]])
-    for i, dcrn in enumerate(crn4['date']):
-        if crn4['iswr self-normalized'][i] != 0:
-            liste = [] # erreur ici
-            for j, dcap in enumerate(cap['date']):
-                if same_date(dcrn, dcap):
-                    liste.append(cap['irradiance self-normalized'][j])
-            while len(liste) < 20:
-                liste.append(0)
-            array = np.append(array, [liste], axis=0) # en lien avec ceci
-        else:
-            array = np.append(array, [[0 for _ in range(20)]], axis=0)
-        print(i/14689*100)
-    file = pd.DataFrame(array[1:][:])
-    file.to_csv(f"array.csv", index=False)
-    return array[1:][:]
+def norm_CRN4(path, pathref, newname):
+    """normalize irradiance data according to a certain reference (i0) who don't have the same timestamp 
+    
+    path: str of the path of the file in question
+    pathref: str of the path of the file who is the reference
+    newname: str of the name of the dataframe returned
 
-def same_date(s1, s2):
-    """find the difference between 2 dates and return True if the difference is less than 4 minutes, no matter the order the dates are entered (if not retrun False)
+    return dataframe and save csv
+    """
+    crn4 = pd.read_csv(pathref, header=0)
+    cap = pd.read_csv(path, header=0)
+    j=0
+    rowscrn = crn4.shape[0]
+    rowscap = cap.shape[0]
+    dicto = {}
+    for date in crn4['date']:
+        dicto[date] = []
+    for i in range(rowscap):
+        s1 = cap['date'][i]
+        date1 = dt.strptime(s1, '%Y-%m-%d %H:%M:%S')
+        print(i/rowscap*100)
+        while True:
+            if j >= rowscrn:
+                break
+            s2 = crn4['date'][j]
+            date2 = dt.strptime(s2, '%Y-%m-%d %H:%M:%S')
+            delta = (date2 - date1).total_seconds()
+            if delta < -300:
+                j += 1
+            elif delta <= 300 and delta >= -300:
+                dicto[s2].append(cap['irradiance self-normalized'][i])
+                break
+            else:
+                break
+        if j > rowscrn:
+            break
+    df = pd.DataFrame({'date': dicto.keys(), 'ref':crn4['iswr self-normalized'], 'list': dicto.values()})
+    df.to_csv(f"{newname}.csv", index=False)
+    return df
+
+def same_date(s1, s2, resolution):
+    """find the difference between 2 dates and return True if the difference is less than the resolution, no matter the order the dates are entered (if not retrun False)
     s1: str of the first date of format '%Y-%m-%d %H:%M:%S'
     s2: str of the second date of format '%Y-%m-%d %H:%M:%S'
+    resolution: time interval in seconds where the dates are assumed to be the same 
 
-    return un bool
+    return: a bool of the answer
     """
     date1 = dt.strptime(s1, '%Y-%m-%d %H:%M:%S')
     date2 = dt.strptime(s2, '%Y-%m-%d %H:%M:%S')
     a = (date2 - date1).total_seconds()
-    if a <= 240 and a >= -240:
+    if a <= resolution and a >= -resolution:
         return True
     return False
 
-#enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\ISWR.csv'
-newname = '400F650_normalizedwithiswr'
-headers = ['date', 'irradiance']
+def stats(path, colum):
+    """ calculate the mean and the median of each list in a dataframe of lists
+    
+    path: str of the path of the file
+    colum: str of the name of the colum of the lists
+    """
+    data = pd.read_csv(path, header=0)
+    moy = []
+    med = []
+    eff_refy = []
+    eff_refd = []
+    for i, str in enumerate(data[colum]):
+        liste = ast.literal_eval(str)
+        if liste and data['ref'][i] != 0:
+            moy.append(np.mean(liste)/data['ref'][i])
+            med.append(np.median(liste)/data['ref'][i])
+            if np.mean(liste)/data['ref'][i] > 2:
+                eff_refy.append(np.mean(liste)/data['ref'][i])
+            if np.median(liste)/data['ref'][i] > 2:
+                eff_refd.append(np.median(liste)/data['ref'][i])
+        else:
+            moy.append(np.nan)
+            med.append(np.nan)
+    data['mean_norm'] = moy
+    data['median_norm'] = med
+    data.to_csv(path, index=None)
+    return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
 
-print(norm_CRN4(path1, path2))
-# array = np.array([[0 for _ in range(4)]])
-# liste = [1, 5, 9]
-# while len(liste) < 4:
-#     liste.append(0)
-# array = np.append(array, [liste], axis=0)
-# file = pd.DataFrame(array[1:][:])
-# file.to_csv(f"array.csv", index=False)
-# print(array)
+
+#enter your path here
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\array_400F650-4.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\ISWR-strip.csv'
+newname = 'array_400F650-4'
+headers = ['date', 'height']
+
+print(stats(path1, 'list'))
+
