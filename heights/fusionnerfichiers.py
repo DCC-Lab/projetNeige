@@ -20,6 +20,7 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=
     return the dataframe and save a csv
     """
     data = pd.read_excel(path, header=header, names=headers, sheet_name=sheet_name, usecols=colums, skiprows = startrow, nrows=rows, na_values='na')
+    data = data.dropna()
     data.to_csv(f"{name}.csv", index=False)
     return data
 
@@ -69,7 +70,7 @@ def add_id(path, name_id, id):
     name_id: name of the colum we add
     id: str or value of the id
     
-    return the dataframe and save csv
+    return the dataframe and update the csv
     """
     df = pd.read_csv(path, header=0)
     rows = df.shape[0]
@@ -77,19 +78,18 @@ def add_id(path, name_id, id):
     df.to_csv(path, index=False)
     return df
 
-def stripcolums(path, newname, colums):
+def stripcolums(path, colums):
     """delete colums of the file chosen
     
     path: str of the path of the file
-    newname: name of the file modified
     colums: list of the name of the colums we want to delete
 
-    return the dataframe and save csv
+    return the dataframe and update the csv
     """
     df = pd.read_csv(path, header=0)
     for col in colums:
         df.pop(col)
-    df.to_csv(f"{newname}.csv", index=False)
+    df.to_csv(path, index=False)
     return df
 
 def find_date(path, date, newname, headers, cols=None):
@@ -112,24 +112,25 @@ def find_date(path, date, newname, headers, cols=None):
     data.to_csv(f"{newname}.csv", index=False, header=headers)
     return data
 
-def normalize_file(path):
+def normalize_file(path, colum):
     """normalize irradiance data according to the max value of the data
     
     path: str of the path of the file
+    colum: str of the colum we want to normalize with itself
 
-    return the datafram and update the csv file
+    return the datafram and update the csv
     """
     df = pd.read_csv(path)
-    ira = df.irradiance
+    ira = df[colum]
     max_ira = max(ira)
     norm_ira = []
     for value in ira:
         norm_ira.append(value/max_ira)
-    df['irradiance self-normalized'] = norm_ira
+    df[f'{colum} self-normalized'] = norm_ira
     df.to_csv(path, index=False)
     return df
 
-def normalize_irradiance(path, pathref, newname):
+def normalize_irradiance(path, pathref, colum, newname):
     """normalize irradiance data according to a certain reference (i0) who have the same timestamp
     
     path: str of the path of the file in question
@@ -143,14 +144,16 @@ def normalize_irradiance(path, pathref, newname):
     dates = pd.read_csv(path).date.tolist()
     rows_to_keep = []
     for i, datehour in enumerate(bigref['date']):
+        print(i/bigref.shape[0]*50)
         if datehour in dates:
             rows_to_keep.append(i+1)
-    ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[:][2].tolist()
-    ira = pd.read_csv(path)['irradiance self-normalized'].tolist()
+    ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[colum[0]].tolist()
+    ira = pd.read_csv(path)[colum[1]].tolist()
     norm_ira = []
     eff_ref = []
     # calculate the normalized irradiance
     for i in range(len(ira)):
+        print(50+i/len(ira)*50)
         if ref[i] == 0:
             norm_ira.append(0)
         else:
@@ -245,12 +248,27 @@ def stats(path, colum):
     data.to_csv(path, index=None)
     return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
 
+def denoise(path, window, colum):
+    """ denoise by a moving mean a colum of a certain csv file
+    
+    path: str of the path of the file
+    window: int of the number of values who are in each mean
+    colum: str of the name of the colum we want to denoise
+
+    return dataframe and update the csv
+    """
+    data = pd.read_csv(path)
+    y = data[colum]
+    w = y.rolling(window).mean()
+    data[f"{colum}_denoised"] = w
+    data.to_csv(path, index=None)
+    return data
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\array_400F650-4.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\ISWR-strip.csv'
-newname = 'array_400F650-4'
-headers = ['date', 'height']
-
-print(stats(path1, 'list'))
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\qheightsM-T4withM.csv'
+newname = 'all_heightsAM'
+# headers = ['date', 'height']
+# colum = [3, 'irradiance self-normalized_denoised']
+print(stripcolums(path1, ['Unnamed: 0']))
 
