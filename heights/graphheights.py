@@ -41,7 +41,7 @@ def twograhs(path1, path2, title, yaxis):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(trace1)
     fig.add_trace(trace2,secondary_y=True)
-    fig.update_layout(title_text=title, yaxis_range=[0, 2])
+    fig.update_layout(title_text=title, yaxis1=dict(range=[0, 1.2]), yaxis2=dict(range=[0, 1.2]))
     fig.update_xaxes(title_text="date")
     fig.update_yaxes(title_text=yaxis[0], secondary_y=False)
     fig.update_yaxes(title_text=yaxis[1], secondary_y=True)
@@ -49,15 +49,16 @@ def twograhs(path1, path2, title, yaxis):
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_normd1000.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
-title = "Irradiance (400F650) and height (ACFM) of snow over time (2020-2021)"
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\path.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
+title = "Irradiance (400F650) denoised of snow over time (2020-2021)"
 # title = "Irradiance (CRN4) and height (ACFM) of snow over time (2020-2021)"
-yaxis = ['irradiance i0-normalized', 'height']
+yaxis = ['irradiance self-normalized', 'irradiance self-normalized_denoised5']
 # yaxis = ['iswr self-normalized', 'height']
+# names = {'A': 'Automatic', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent'}
 
 #show and save figure
-fig = twograhs(path1, path2, title, yaxis)
+fig = twograhs(path2, path1, 'compare denoise', yaxis)
 fig.show()
-fig.write_html('all_400F650+heightsACFM_normd1000.html')
+# fig.write_html('all_400F485+heightsACFM.html')
 
