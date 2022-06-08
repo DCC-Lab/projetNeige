@@ -129,7 +129,7 @@ def norm_file(path, colum):
     norm_ira = []
     for value in ira:
         norm_ira.append(value/max_ira)
-    df[f'{colum} self-normalized'] = norm_ira
+    df[f'{colum} self-norm'] = norm_ira
     df.to_csv(path, index=False)
     return df
 
@@ -139,14 +139,18 @@ def norm_irradiance(path, pathref, colums, newname):
     path: str of the path of the file in question
     pathref: str of the path of the file who is the reference
     colums: list of the colums we want to use to normalize (first is a str for the file tested and second is a int for the ref)
-    newname: name of the file with the irradiance normalized
+    newname: str of the name of the dataframe normalized
 
     return the efficienty of the normalization (number of values greater than 2 and the maximum value) and save csv
     """
     # find corresponding reference
     bigref = pd.read_csv(pathref)
     colref = bigref.columns.values.tolist()
-    dates = pd.read_csv(path).date.tolist()
+    file = pd.read_csv(path)
+    dates = file.date.tolist()
+    n = 1
+    if colref[colums[1]] != colums[0]:
+        raise ValueError('colums are not the same')
     try:
         ref = bigref.loc[bigref['date'] == dates]
         ref = ref[colref[colums[1]]]
@@ -154,26 +158,31 @@ def norm_irradiance(path, pathref, colums, newname):
     except Exception as err:
         rows_to_keep = []
         for i, datehour in enumerate(bigref['date']):
-            print(i/bigref.shape[0]*50)
+            if (i+1) >= bigref.shape[0]*n/5:
+                print((i+1)/bigref.shape[0]*50)
+                n +=1
             if datehour in dates:
                 rows_to_keep.append(i+1)
         ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[colums[1]]
     ira = pd.read_csv(path)[colums[0]]
     norm_ira = []
     eff_ref = []
+    n = 1
     # calculate the normalized irradiance
     for i in range(ira.shape[0]):
-        print(50+i/ira.shape[0]*50)
+        if (i+1) >= ira.shape[0]*n/5:
+            print(50+(i+1)/ira.shape[0]*50)
+            n += 1
         if ref[i] == 0:
             norm_ira.append(0)
         else:
             norm_ira.append(ira[i]/ref[i])
-            if ira[i]/ref[i] > 2:
+            if ira[i]/ref[i] > 2 or ira[i]/ref[i] < -1:
                 eff_ref.append(ira[i]/ref[i])
     # store the result
-    norm_ira = pd.DataFrame({'date': dates, 'irradiance i0-normalized': norm_ira})
-    norm_ira.to_csv(f"{newname}.csv", index=False)
-    return (len(eff_ref), max(eff_ref))
+    file[f'{colums[0]} i0-norm'] = norm_ira
+    file.to_csv(f"{newname}.csv", index=False)
+    return (len(eff_ref), max(eff_ref), min(eff_ref))
 
 def norm_CRN4(path, pathref, newname):
     """normalize irradiance data according to a certain reference (i0) who don't have the same timestamp 
@@ -262,18 +271,20 @@ def denoise(path, colum, filter=0.1):
     """ denoise by a filter a colum of a certain csv file
     
     path: str of the path of the file
-    filter: float of the number of "precision" we want (0.1 by default)
     colum: str of the name of the colum we want to denoise
+    filter: float of the number of "precision" we want (0.1 by default)
 
     return dataframe and update the csv
     """
     data = pd.read_csv(path)
-    colums = data.columns.values.tolist()
     date1 = data['date'][0]
     for i, date2 in enumerate(data['date'][1:]):
         if date1[:10] != date2[:10]:
+            a = pd.DataFrame(data.iloc[i+1])
+            a.iat[0, 0] = 'test'
+            a = pd.DataFrame.transpose(a)
             for n in range(1, 10):
-                data.loc[i+n/10] = 'test', data[colums[1]][i+1], data[colums[2]][i+1], data[colums[3]][i+1], data[colums[4]][i+1], data[colums[5]][i+1]
+                data.loc[i+n/10] = a.values.tolist()[0]
         date1 = date2
     data = data.sort_index().reset_index(drop=True)
     y = data[colum]
@@ -281,17 +292,54 @@ def denoise(path, colum, filter=0.1):
     w = filtfilt(b, a, y)
     data[f"{colum}_denoised"] = w
     data = data[data['date'] != 'test']
-    data.to_csv(path, index=None)
+    data.to_csv('path.csv', index=None)
     return data
 
+def norm_std(path, colum, columref):
+    """normalize irradiance data according to the max value of the data of another colum
+    because the colum is too noised
+    
+    path: str of the path of the file
+    colum: str of the colum we want to normalize
+    columref: colum who has the maximum at the index we want
+
+    return the datafram and update the csv
+    """
+    df = pd.read_csv(path)
+    ira = df[colum]
+    ref = df[columref]
+    indexref = df.loc[df[columref] == max(ref)].index[0]
+    max_ira = ira.loc[indexref]
+    norm_ira = []
+    eff = []
+    for value in ira:
+        norm_ira.append(value/max_ira)
+        if value/max_ira > 2 or value/max_ira < -1:
+            eff.append(value/max_ira)
+    df[f'{colum} std-norm'] = norm_ira
+    df.to_csv(path, index=False)
+    return (len(eff), max(eff), min(eff))
+
+def check_eff(path):
+    data = pd.read_csv(path)
+    cols = sorted(data.columns[1:])
+    for i, col in enumerate(cols):
+        eff = []
+        for value in data[col]:
+            if value > 2 or value < -1:
+                eff.append(value)
+        if eff != []:
+            print("{} {}: {}, {}, {}".format(i, col, len(eff), max(eff), min(eff)))
+        else:
+            print("{} {}: {}".format(i, col, len(eff)))
+    pass
 #enter your path here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm.csv'
 newname = 'test'
 headers = ['date', 'irradiance']
-colum = ["irradiance self-normalized_denoised", 3]
-print(denoise(path2, 10, 'irradiance self-normalized'))
-# cols = [('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')]
-# for c, i in cols:
-#     print(norm_file(path1+'400F'+c+'.csv', 'irradiance_denoised'))
-
+colum = ["irradiance self-norm", 2]
+# print(denoise(path2, 10, 'irradiance self-normalized'))
+cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] #('485', 'D'), ('650', 'F'), 
+for c, i in cols:
+    print(check_eff(f'{path1}400F650_norm{c}.csv'))
