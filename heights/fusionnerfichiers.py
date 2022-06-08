@@ -2,8 +2,11 @@ import pandas as pd
 import os
 import glob
 from datetime import datetime as dt
+from datetime import timedelta as td
 import numpy as np
 import ast
+from scipy.signal import filtfilt
+from scipy.signal import butter
 
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, colums=None,):
     """read an Excel file and transform the useful data in a csv
@@ -112,7 +115,7 @@ def find_date(path, date, newname, headers, cols=None):
     data.to_csv(f"{newname}.csv", index=False, header=headers)
     return data
 
-def normalize_file(path, colum):
+def norm_file(path, colum):
     """normalize irradiance data according to the max value of the data
     
     path: str of the path of the file
@@ -130,30 +133,37 @@ def normalize_file(path, colum):
     df.to_csv(path, index=False)
     return df
 
-def normalize_irradiance(path, pathref, colum, newname):
+def norm_irradiance(path, pathref, colums, newname):
     """normalize irradiance data according to a certain reference (i0) who have the same timestamp
     
     path: str of the path of the file in question
     pathref: str of the path of the file who is the reference
+    colums: list of the colums we want to use to normalize (first is a str for the file tested and second is a int for the ref)
     newname: name of the file with the irradiance normalized
 
     return the efficienty of the normalization (number of values greater than 2 and the maximum value) and save csv
     """
     # find corresponding reference
     bigref = pd.read_csv(pathref)
+    colref = bigref.columns.values.tolist()
     dates = pd.read_csv(path).date.tolist()
-    rows_to_keep = []
-    for i, datehour in enumerate(bigref['date']):
-        print(i/bigref.shape[0]*50)
-        if datehour in dates:
-            rows_to_keep.append(i+1)
-    ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[colum[0]].tolist()
-    ira = pd.read_csv(path)[colum[1]].tolist()
+    try:
+        ref = bigref.loc[bigref['date'] == dates]
+        ref = ref[colref[colums[1]]]
+        print(49)
+    except Exception as err:
+        rows_to_keep = []
+        for i, datehour in enumerate(bigref['date']):
+            print(i/bigref.shape[0]*50)
+            if datehour in dates:
+                rows_to_keep.append(i+1)
+        ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[colums[1]]
+    ira = pd.read_csv(path)[colums[0]]
     norm_ira = []
     eff_ref = []
     # calculate the normalized irradiance
-    for i in range(len(ira)):
-        print(50+i/len(ira)*50)
+    for i in range(ira.shape[0]):
+        print(50+i/ira.shape[0]*50)
         if ref[i] == 0:
             norm_ira.append(0)
         else:
@@ -248,27 +258,40 @@ def stats(path, colum):
     data.to_csv(path, index=None)
     return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
 
-def denoise(path, window, colum):
-    """ denoise by a moving mean a colum of a certain csv file
+def denoise(path, colum, filter=0.1):
+    """ denoise by a filter a colum of a certain csv file
     
     path: str of the path of the file
-    window: int of the number of values who are in each mean
+    filter: float of the number of "precision" we want (0.1 by default)
     colum: str of the name of the colum we want to denoise
 
     return dataframe and update the csv
     """
     data = pd.read_csv(path)
+    colums = data.columns.values.tolist()
+    date1 = data['date'][0]
+    for i, date2 in enumerate(data['date'][1:]):
+        if date1[:10] != date2[:10]:
+            for n in range(1, 10):
+                data.loc[i+n/10] = 'test', data[colums[1]][i+1], data[colums[2]][i+1], data[colums[3]][i+1], data[colums[4]][i+1], data[colums[5]][i+1]
+        date1 = date2
+    data = data.sort_index().reset_index(drop=True)
     y = data[colum]
-    w = y.rolling(window).mean()
+    b, a = butter(3, filter)
+    w = filtfilt(b, a, y)
     data[f"{colum}_denoised"] = w
+    data = data[data['date'] != 'test']
     data.to_csv(path, index=None)
     return data
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\qheightsM-T4withM.csv'
-newname = 'all_heightsAM'
-# headers = ['date', 'height']
-# colum = [3, 'irradiance self-normalized_denoised']
-print(stripcolums(path1, ['Unnamed: 0']))
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
+newname = 'test'
+headers = ['date', 'irradiance']
+colum = ["irradiance self-normalized_denoised", 3]
+print(denoise(path2, 10, 'irradiance self-normalized'))
+# cols = [('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')]
+# for c, i in cols:
+#     print(norm_file(path1+'400F'+c+'.csv', 'irradiance_denoised'))
 
