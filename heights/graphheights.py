@@ -14,7 +14,7 @@ def graphheight(path, color=None, realNames=None, constant=None):
     return the figure
     """
     data = pd.read_csv(path)
-    fig = px.scatter(data, x='date', y='height', color=color, labels={"height": "height (cm)"}, title=f"Height of the snow {constant+' ' if constant else ''}over time according to the {color} (2020-2021)")
+    fig = px.scatter(data, x='date', y='irradiance_denoised', color=color, title=f"Height of the snow {constant+' ' if constant else ''}over time according to the {color} (2020-2021)") #, log_y=True
     if realNames:
         for i, dict in enumerate(fig.data):
             for elem in dict:
@@ -22,7 +22,7 @@ def graphheight(path, color=None, realNames=None, constant=None):
                     fig.data[i][elem] = realNames[dict[elem]]
     return fig
 
-def twograhs(path1, path2, title, yaxis):
+def twograhs(path1, path2, title, yaxis, scale):
     """make a plotly scatter with 2 csv files on the same graph
     
     path1: str of the path of the first file 
@@ -49,17 +49,19 @@ def twograhs(path1, path2, title, yaxis):
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000-2.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000-2.csv'
 title = "Irradiance (400F650) denoised of snow over time (2020-2021)"
 # title = "Irradiance (CRN4) and height (ACFM) of snow over time (2020-2021)"
-yaxis = ['irradiance self-norm', 'irradiance self-norm i0-norm_denoised']
-scale = [[-0.1, 1.2], [-0.1, 2]]
-# yaxis = ['iswr self-normalized', 'height']
+# yaxis = ['irradiance self-norm', 'irradiance_denoised self-norm i0-norm_denoised std-norm']
+scale = [[0, 80], [0, 5]]
+yaxis = ['irradiance self-norm', 'irradiance self-norm i0-norm_denoisedR']
 # names = {'A': 'Automatic', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent'}
 
 #show and save figure
-fig = twograhs(path2, path1, 'A', yaxis)
+fig = twograhs(path1, path2, 'test', yaxis, scale)
 fig.show()
-fig.write_html('all_400F650_norm1000-A.html')
+fig.write_html('all_400F650_norm1000-2A.html')
 
+# fig = graphheight(path2)
+# fig.show()
