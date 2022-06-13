@@ -1,3 +1,4 @@
+from turtle import st
 import pandas as pd
 import os
 import glob
@@ -5,8 +6,7 @@ from datetime import datetime as dt
 from datetime import timedelta as td
 import numpy as np
 import ast
-from scipy.signal import filtfilt
-from scipy.signal import butter
+import scipy.signal as ss
 
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, colums=None,):
     """read an Excel file and transform the useful data in a csv
@@ -91,7 +91,10 @@ def stripcolums(path, colums):
     """
     df = pd.read_csv(path, header=0)
     for col in colums:
-        df.pop(col)
+        try:
+            df.pop(col)
+        except KeyError:
+            pass
     df.to_csv(path, index=False)
     return df
 
@@ -121,7 +124,7 @@ def norm_file(path, colum):
     path: str of the path of the file
     colum: str of the colum we want to normalize with itself
 
-    return the datafram and update the csv
+    return the dataframe and update the csv
     """
     df = pd.read_csv(path)
     ira = df[colum]
@@ -129,6 +132,26 @@ def norm_file(path, colum):
     norm_ira = []
     for value in ira:
         norm_ira.append(value/max_ira)
+    df[f'{colum} self-norm'] = norm_ira
+    df.to_csv(path, index=False)
+    return df
+
+def norm_calibrate(path, colum, date='2020-12-05 14:28:33'):
+    """normalize irradiance data according to a certain value of the data
+    
+    path: str of the path of the file
+    colum: str of the colum we want to normalize with itself
+    date: str of the date the certain value is ('2020-12-05 14:28:33' by default)
+
+    return the dataframe and update the csv
+    """
+    df = pd.read_csv(path)
+    ira = df[colum]
+    indexref = df.loc[df['date'] == date].index[0]
+    ref_ira = np.mean(ira.loc[indexref-1:indexref+1])
+    norm_ira = []
+    for value in ira:
+        norm_ira.append(value/ref_ira)
     df[f'{colum} self-norm'] = norm_ira
     df.to_csv(path, index=False)
     return df
@@ -267,7 +290,7 @@ def stats(path, colum):
     data.to_csv(path, index=None)
     return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
 
-def denoise(path, colum, filter=0.1):
+def denoise_fifi(path, colum, filter=0.1):
     """ denoise by a filter a colum of a certain csv file
     
     path: str of the path of the file
@@ -288,11 +311,33 @@ def denoise(path, colum, filter=0.1):
         date1 = date2
     data = data.sort_index().reset_index(drop=True)
     y = data[colum]
-    b, a = butter(3, filter)
-    w = filtfilt(b, a, y)
+    b, a = ss.butter(3, filter)
+    w = ss.filtfilt(b, a, y)
     data[f"{colum}_denoised"] = w
     data = data[data['date'] != 'test']
     data.to_csv('path.csv', index=None)
+    return data
+
+def denoise_mea(path, colum, order=1, window=7):
+    """ denoise by a moving average a colum of a certain csv file
+    
+    path: str of the path of the file
+    colum: str of the name of the colum we want to denoise
+    order: 1 or -1, way of the moving average (left to right or the opposite)
+    window: int of the number of data we use for the mean (7 minutes by default)
+
+    return dataframe and update the csv
+    """
+    dic = {1: 'L', -1: 'R'}
+    data = pd.read_csv(path)
+    y = data[colum].to_list()
+    dates = []
+    for date in data['date']:
+        dates.append(dt.strptime(date, '%Y-%m-%d %H:%M:%S'))
+    df = pd.DataFrame({'date': dates[::order], f'{colum}': y[::order]})
+    w = df.rolling(f'{window}T', on='date').mean()
+    data[f"{colum}_denoised{dic[order]}"] = w.iloc[:, 1].to_list()[::order]
+    data.to_csv(path, index=False)
     return data
 
 def norm_std(path, colum, columref):
@@ -303,7 +348,7 @@ def norm_std(path, colum, columref):
     colum: str of the colum we want to normalize
     columref: colum who has the maximum at the index we want
 
-    return the datafram and update the csv
+    return the dataframe and update the csv
     """
     df = pd.read_csv(path)
     ira = df[colum]
@@ -321,6 +366,13 @@ def norm_std(path, colum, columref):
     return (len(eff), max(eff), min(eff))
 
 def check_eff(path):
+    """Run a kind of evaluation of the data and print the max and min value plus the number of data who are out of a certain range
+    for each colum of the file
+    
+    path: str of the path of the file
+
+    return nothing
+    """
     data = pd.read_csv(path)
     cols = sorted(data.columns[1:])
     for i, col in enumerate(cols):
@@ -333,13 +385,14 @@ def check_eff(path):
         else:
             print("{} {}: {}".format(i, col, len(eff)))
     pass
+
 #enter your path here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm.csv'
-newname = 'test'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650'
+# newname = 
 headers = ['date', 'irradiance']
-colum = ["irradiance self-norm", 2]
-# print(denoise(path2, 10, 'irradiance self-normalized'))
-cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] #('485', 'D'), ('650', 'F'), 
+colums = ["irradiance_denoised self-norm", 6]
+# print(denoise_mea(f'{path1}400F650.csv', 'irradiance self-norm', order=-1))
+cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] #  ('485', 'D'), ('650', 'F'), 
 for c, i in cols:
-    print(check_eff(f'{path1}400F650_norm{c}.csv'))
+    print(norm_std(f'{path2}_norm{c}-2.csv', 'irradiance self-norm_denoised i0-norm std-norm_denoisedR', 'irradiance'))
