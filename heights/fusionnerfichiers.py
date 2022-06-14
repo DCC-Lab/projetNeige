@@ -340,6 +340,30 @@ def denoise_mea(path, colum, order=1, window=7):
     data.to_csv(path, index=False)
     return data
 
+def denoise_exp(path, colum, window=7):
+    """ denoise by a moving average a colum of a certain csv file
+    
+    path: str of the path of the file
+    colum: str of the name of the colum we want to denoise
+    order: 1 or -1, way of the moving average (left to right or the opposite)
+    window: int of the number of data we use for the mean (7 minutes by default)
+
+    return dataframe and update the csv
+    """
+    data = pd.read_csv(path)
+    y = data[colum].to_list()
+    dates = []
+    for date in data['date']:
+        dates.append(dt.strptime(date, '%Y-%m-%d %H:%M:%S'))
+    df = pd.DataFrame({'date': dates, f'{colum}': y})
+    w = df.ewm(f'{window}T', on='date').mean()
+    data[f"{colum}_denoised"] = w.iloc[:, 1].to_list()
+    data.to_csv(path, index=False)
+    return data
+
+def denoise_spl(path, colum):
+    pass
+
 def norm_std(path, colum, columref):
     """normalize irradiance data according to the max value of the data of another colum
     because the colum is too noised
@@ -387,12 +411,14 @@ def check_eff(path):
     pass
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650'
+# path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+# path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650'
+path1 = '/Volumes/Goliath/vdionne/neige/'
+path2 = '/Volumes/Goliath/vdionne/neige/Irradiance/400F650'
 # newname = 
 headers = ['date', 'irradiance']
 colums = ["irradiance_denoised self-norm", 6]
-# print(denoise_mea(f'{path1}400F650.csv', 'irradiance self-norm', order=-1))
+# print(renamefiles_asDanwishes(path1))
 cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] #  ('485', 'D'), ('650', 'F'), 
 for c, i in cols:
-    print(norm_std(f'{path2}_norm{c}-2.csv', 'irradiance self-norm_denoised i0-norm std-norm_denoisedR', 'irradiance'))
+    print(check_eff(f'{path2}_norm{c}-2.csv'))
