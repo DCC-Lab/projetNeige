@@ -29,6 +29,7 @@ def twograhs(path1, path2, title, yaxis, scale):
     path2: str of the path of the second file
     title: title ot the graph
     yaxis: list of the names of the data column of each file
+    scale: range of the vertical axis for each file
 
     return the figure
     """
@@ -49,27 +50,23 @@ def twograhs(path1, path2, title, yaxis, scale):
 
 
 #Write info here
-# path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000-2.csv'
-# path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000-2.csv'
-path1 = '/Volumes/Goliath/vdionne/neige/Irradiance/400F650_norm1000-2.csv'
-path2 = '/Volumes/Goliath/vdionne/neige/Irradiance/400F650_norm1000-2.csv'
-title = "Irradiance (400F650) denoised of snow over time (2020-2021)"
-# title = "Irradiance (CRN4) and height (ACFM) of snow over time (2020-2021)"
-# yaxis = ['irradiance self-norm', 'irradiance_denoised self-norm i0-norm_denoised std-norm']
-
-yaxis = ['irradiance self-norm', 'irradiance self-norm_denoised self-norm i0-norm_denoisedR']
-df = pd.read_csv(path1)
-ira = df[yaxis[1]]
-ref = df[yaxis[0]]
-indexref = df.loc[df[yaxis[0]] == max(ref)].index[0]
-max_ira = ira.loc[indexref]
-scale = [[0, 80], [0, max_ira*1.5]]
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000-4.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
 # names = {'A': 'Automatic', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent'}
 
+yaxis = ['irradiance self-norm i0-norm_denoisedR std-norm', 'height']
+# df = pd.read_csv(path1)
+# ira = df[yaxis[1]]
+# ref = df[yaxis[0]]
+# indexref = df.loc[df[yaxis[0]] == max(ref)].index[0]
+# max_ira = ira.loc[indexref]
+scale = [[0, 1.5], [0, 85]]
+
+
 #show and save figure
-fig = twograhs(path1, path2, '2-D', yaxis, scale)
+fig = twograhs(path1, path2, 'test', yaxis, scale)
 fig.show()
-fig.write_html('all_400F650_norm1000-2D.html')
+fig.write_html('all_400F650_heightsACFM_norm1000-4B.html')
 
 # fig = graphheight(path2)
 # fig.show()
