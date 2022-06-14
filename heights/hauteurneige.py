@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 
-
 def getdata_excel(file, row):
     """file: str
         row: int, represent the picture
