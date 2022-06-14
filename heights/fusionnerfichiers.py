@@ -151,7 +151,7 @@ def norm_calibrate(path, colum, date='2020-12-05 14:28:33'):
     ref_ira = np.mean(ira.loc[indexref-1:indexref+1])
     norm_ira = []
     for value in ira:
-        norm_ira.append(value/ref_ira)
+        norm_ira.append(value/(ref_ira*80))
     df[f'{colum} self-norm'] = norm_ira
     df.to_csv(path, index=False)
     return df
@@ -247,6 +247,31 @@ def norm_CRN4(path, pathref, newname):
     df.to_csv(f"{newname}.csv", index=False)
     return df
 
+def norm_std(path, colum, columref):
+    """normalize irradiance data according to the max value of the data of another colum
+    because the colum is too noised
+    
+    path: str of the path of the file
+    colum: str of the colum we want to normalize
+    columref: colum who has the maximum at the index we want
+
+    return the dataframe and update the csv
+    """
+    df = pd.read_csv(path)
+    ira = df[colum]
+    ref = df[columref]
+    indexref = df.loc[df[columref] == max(ref)].index[0]
+    max_ira = ira.loc[indexref]
+    norm_ira = []
+    eff = []
+    for value in ira:
+        norm_ira.append(value/max_ira)
+        if value/max_ira > 2 or value/max_ira < -1:
+            eff.append(value/max_ira)
+    df[f'{colum} std-norm'] = norm_ira
+    df.to_csv(path, index=False)
+    return (len(eff), max(eff), min(eff))
+
 def same_date(s1, s2, resolution):
     """find the difference between 2 dates and return True if the difference is less than the resolution, no matter the order the dates are entered (if not retrun False)
     s1: str of the first date of format '%Y-%m-%d %H:%M:%S'
@@ -290,7 +315,7 @@ def stats(path, colum):
     data.to_csv(path, index=None)
     return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
 
-def denoise_fifi(path, colum, filter=0.1):
+def denoise_but(path, colum, filter=0.1):
     """ denoise by a filter a colum of a certain csv file
     
     path: str of the path of the file
@@ -315,7 +340,7 @@ def denoise_fifi(path, colum, filter=0.1):
     w = ss.filtfilt(b, a, y)
     data[f"{colum}_denoised"] = w
     data = data[data['date'] != 'test']
-    data.to_csv('path.csv', index=None)
+    data.to_csv(path, index=None)
     return data
 
 def denoise_mea(path, colum, order=1, window=7):
@@ -338,56 +363,51 @@ def denoise_mea(path, colum, order=1, window=7):
     w = df.rolling(f'{window}T', on='date').mean()
     data[f"{colum}_denoised{dic[order]}"] = w.iloc[:, 1].to_list()[::order]
     data.to_csv(path, index=False)
-    return data
+    return df
 
-def denoise_exp(path, colum, window=7):
-    """ denoise by a moving average a colum of a certain csv file
+def denoise_exp(path, colum, order=1, window=7):
+    """ denoise by a moving exponential average a colum of a certain csv file
     
     path: str of the path of the file
     colum: str of the name of the colum we want to denoise
-    order: 1 or -1, way of the moving average (left to right or the opposite)
     window: int of the number of data we use for the mean (7 minutes by default)
 
     return dataframe and update the csv
     """
+    dic = {1: 'L', -1: 'R'}
     data = pd.read_csv(path)
     y = data[colum].to_list()
     dates = []
     for date in data['date']:
         dates.append(dt.strptime(date, '%Y-%m-%d %H:%M:%S'))
-    df = pd.DataFrame({'date': dates, f'{colum}': y})
-    w = df.ewm(f'{window}T', on='date').mean()
-    data[f"{colum}_denoised"] = w.iloc[:, 1].to_list()
+    df = pd.DataFrame({'date': dates[::order], f'{colum}': y[::order]})
+    w = df[f'{colum}'].ewm(halflife=td(minutes=window*order), times=df['date'], ignore_na=True).mean()
+    w = w.to_list()
+    data[f"{colum}_denoised{dic[order]}"] = w[::order]
     data.to_csv(path, index=False)
     return data
 
-def denoise_spl(path, colum):
-    pass
-
-def norm_std(path, colum, columref):
-    """normalize irradiance data according to the max value of the data of another colum
-    because the colum is too noised
+def denoise_med(path, colum, order=-1, window=15):
+    """ denoise by a moving median a colum of a certain csv file
     
     path: str of the path of the file
-    colum: str of the colum we want to normalize
-    columref: colum who has the maximum at the index we want
+    colum: str of the name of the colum we want to denoise
+    order: 1 or -1, way of the moving median (right to left or the opposite)
+    window: int of the number of data we use for the mean (15 minutes by default)
 
-    return the dataframe and update the csv
+    return dataframe and update the csv
     """
-    df = pd.read_csv(path)
-    ira = df[colum]
-    ref = df[columref]
-    indexref = df.loc[df[columref] == max(ref)].index[0]
-    max_ira = ira.loc[indexref]
-    norm_ira = []
-    eff = []
-    for value in ira:
-        norm_ira.append(value/max_ira)
-        if value/max_ira > 2 or value/max_ira < -1:
-            eff.append(value/max_ira)
-    df[f'{colum} std-norm'] = norm_ira
-    df.to_csv(path, index=False)
-    return (len(eff), max(eff), min(eff))
+    dic = {1: 'L', -1: 'R'}
+    data = pd.read_csv(path)
+    y = data[colum].to_list()
+    dates = []
+    for date in data['date']:
+        dates.append(dt.strptime(date, '%Y-%m-%d %H:%M:%S'))
+    df = pd.DataFrame({'date': dates[::order], f'{colum}': y[::order]})
+    w = df.rolling(f'{window}T', on='date').median()
+    data[f"{colum}_denoised{dic[order]}"] = w.iloc[:, 1].to_list()[::order]
+    data.to_csv(path, index=False)
+    return data
 
 def check_eff(path):
     """Run a kind of evaluation of the data and print the max and min value plus the number of data who are out of a certain range
@@ -411,14 +431,13 @@ def check_eff(path):
     pass
 
 #enter your path here
-# path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-# path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650'
-path1 = '/Volumes/Goliath/vdionne/neige/'
-path2 = '/Volumes/Goliath/vdionne/neige/Irradiance/400F650'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
 # newname = 
-headers = ['date', 'irradiance']
-colums = ["irradiance_denoised self-norm", 6]
-# print(renamefiles_asDanwishes(path1))
-cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] #  ('485', 'D'), ('650', 'F'), 
+# headers = ['date', 'irradiance']
+colums = ['irradiance_denoisedL self-norm', 6]
+# print(denoise_med(f'{path1}400F650_norm1000-3.csv', 'irradiance self-norm_denoisedL i0-norm'))
+# check_eff(f'{path1}path.csv')
+cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # ('485', 'D'), ('650', 'F'), 
 for c, i in cols:
-    print(check_eff(f'{path2}_norm{c}-2.csv'))
+    check_eff(f'{path1}400F650_norm{c}-4.csv')
