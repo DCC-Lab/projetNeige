@@ -50,23 +50,22 @@ def twograhs(path1, path2, title, yaxis, scale):
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000-4.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325_norm1200-4.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325_norm1200-4.csv'
 # names = {'A': 'Automatic', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent'}
 
-yaxis = ['irradiance self-norm i0-norm_denoisedR std-norm', 'height']
-# df = pd.read_csv(path1)
-# ira = df[yaxis[1]]
-# ref = df[yaxis[0]]
-# indexref = df.loc[df[yaxis[0]] == max(ref)].index[0]
-# max_ira = ira.loc[indexref]
-scale = [[0, 1.5], [0, 85]]
-
+yaxis = ['irradiance self-norm', 'irradiance self-norm i0-norm_denoisedR std-norm']
+df = pd.read_csv(path1)
+ira = df[yaxis[1]]
+ref = df[yaxis[0]]
+indexref = df.loc[ref == max(ref)].index[0]
+max_ira = ira.loc[indexref]
+scale = [[0, max(ref)], [0, max_ira*1.5]]
 
 #show and save figure
-fig = twograhs(path1, path2, 'test', yaxis, scale)
+fig = twograhs(path1, path2, '4-B', yaxis, scale)
 fig.show()
-fig.write_html('all_400F650_heightsACFM_norm1000-4B.html')
+fig.write_html('all_400F325_norm1200-4B.html')
 
 # fig = graphheight(path2)
 # fig.show()
