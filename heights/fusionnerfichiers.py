@@ -1,4 +1,3 @@
-from turtle import st
 import pandas as pd
 import os
 import glob
@@ -270,7 +269,11 @@ def norm_std(path, colum, columref):
             eff.append(value/max_ira)
     df[f'{colum} std-norm'] = norm_ira
     df.to_csv(path, index=False)
-    return (len(eff), max(eff), min(eff))
+    if len(eff) == 0:
+        a, b, c = len(eff), max(norm_ira), min(norm_ira)
+    else:
+        a, b, c = len(eff), max(eff), min(eff)
+    return (a, b, c)
 
 def same_date(s1, s2, resolution):
     """find the difference between 2 dates and return True if the difference is less than the resolution, no matter the order the dates are entered (if not retrun False)
@@ -427,17 +430,17 @@ def check_eff(path):
         if eff != []:
             print("{} {}: {}, {}, {}".format(i, col, len(eff), max(eff), min(eff)))
         else:
-            print("{} {}: {}".format(i, col, len(eff)))
+            print("{} {}: {}, {}, {}".format(i, col, len(eff), max(data[col]), min(data[col])))
     pass
 
 #enter your path here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325.csv'
 # newname = 
 # headers = ['date', 'irradiance']
 colums = ['irradiance_denoisedL self-norm', 6]
-# print(denoise_med(f'{path1}400F650_norm1000-3.csv', 'irradiance self-norm_denoisedL i0-norm'))
+# print(norm_calibrate(path2, 'irradiance_denoisedL'))
 # check_eff(f'{path1}path.csv')
 cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # ('485', 'D'), ('650', 'F'), 
 for c, i in cols:
-    check_eff(f'{path1}400F650_norm{c}-4.csv')
+    check_eff(f'{path1}400F325_norm{c}-4.csv')
