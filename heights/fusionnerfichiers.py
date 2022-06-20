@@ -7,7 +7,7 @@ import numpy as np
 import ast
 import scipy.signal as ss
 
-def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, colums=None,):
+def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, colums=None):
     """read an Excel file and transform the useful data in a csv
     
     path: str of the path of the file
@@ -16,6 +16,7 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=
     sheet_name: str or int of the Excel sheet we want to use (the first by default)
     header: last row of the heading where there's not data but for example the name of the colums (0 by default)
     rows: int of the number of the rows we want to store (all by default)
+    startrow: int/list of the row/s we want to skip (None by default)
     colums: str of the letter of the solums we want to store (all by default) -- EX: 'A,K' (colums A and K) 
                                                                                      'A-K' (colums A to K)
 
@@ -97,11 +98,11 @@ def stripcolums(path, colums):
     df.to_csv(path, index=False)
     return df
 
-def find_date(path, date, newname, headers, cols=None):
-    """take only the data from a specific date
+def find_dates(path, dates, newname, headers, cols=None):
+    """take only the data from a or many specific date/s
     
     path: str of the path of the file
-    date: str of the part of time we want to regroup (ex: '2021-01', all of the data in january)
+    dates: list of str of the part of time we want to regroup (ex: '2021-01', all of the data in january)
     newname: name of the file with the data filtred
     headers: name of the colums of the new file
     cols: list of the colums' index we want to conserve, all by default
@@ -110,9 +111,10 @@ def find_date(path, date, newname, headers, cols=None):
     """
     df = pd.read_csv(path, header=0)
     rows_to_keep = []
-    for i, datehour in enumerate(df['date']):
-        if date in datehour:
-            rows_to_keep.append(i+1)
+    for date in dates:
+        for i, datehour in enumerate(df['date']):
+            if date in datehour:
+                rows_to_keep.append(i+1)
     data = pd.read_csv(path, header=None, usecols=cols, skiprows= lambda x: x not in rows_to_keep)
     data.to_csv(f"{newname}.csv", index=False, header=headers)
     return data
@@ -433,14 +435,47 @@ def check_eff(path):
             print("{} {}: {}, {}, {}".format(i, col, len(eff), max(data[col]), min(data[col])))
     pass
 
+def organize_data(path, colum):
+    data = pd.read_csv(path)
+    df = pd.DataFrame({f'{colum}': data[colum].to_list()}, index=data['date'].to_list())
+    date1 = df.index[0]
+    n, count = 1, 0
+    for i, date2 in enumerate(df.index[1:]):
+        if date1[:10] != date2[:10]:
+            a = df[colum].iloc[i+1:i+4].mean()
+            b = df[colum].iloc[i+4:i+7].mean()
+            if (a > b and a-b > 0.0002) or date2[:10] == '2021-04-07':
+                day_am = df.loc[(df.index > date2) & (df.index < f'{date2[:10]} 12{date2[13:]}')]
+                if day_am.empty:
+                    continue
+                dmin = day_am[colum].astype(float).idxmin()
+                wrongdates = day_am.loc[:dmin].iloc[:-1]
+                if wrongdates.empty:
+                    continue
+                wrongstart = dt.strptime(date2, '%Y-%m-%d %H:%M:%S')
+                realstart = dt.strptime(date1, '%Y-%m-%d %H:%M:%S')
+                for i, date in enumerate(wrongdates.index):
+                    realdate = dt.strftime((dt.strptime(date, '%Y-%m-%d %H:%M:%S')-wrongstart+realstart), '%Y-%m-%d %H:%M:%S')
+                    data.loc[data['date'] == date, 'date'] = realdate
+                count += 1
+        date1 = date2
+        if (i+1) >= df.shape[0]*n/10:
+            a = (i+1)/df.shape[0]*100
+            print(a)
+            n += 1
+    data.to_csv(path, index=False)
+    return count
+
+
+
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\DATA-Ordered2.xlsx'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
 # newname = 
-# headers = ['date', 'irradiance']
+headers = ['date', 'irr']
 colums = ['irradiance_denoisedL self-norm', 6]
-# print(norm_calibrate(path2, 'irradiance_denoisedL'))
+# print(Exceltocsv(path2, '400F1000', headers, 'Field400', header=2, colums='A, J'))
 # check_eff(f'{path1}path.csv')
-cols = [('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # ('485', 'D'), ('650', 'F'), 
+cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
 for c, i in cols:
-    check_eff(f'{path1}400F325_norm{c}-4.csv')
+    print(organize_data(f'{path2}400F{c}.csv', headers[1]))
