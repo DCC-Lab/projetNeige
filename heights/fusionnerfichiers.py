@@ -23,7 +23,7 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=
     return the dataframe and save a csv
     """
     data = pd.read_excel(path, header=header, names=headers, sheet_name=sheet_name, usecols=colums, skiprows = startrow, nrows=rows, na_values='na')
-    data = data.dropna()
+    # data = data.dropna()
     data.to_csv(f"{name}.csv", index=False)
     return data
 
@@ -137,12 +137,12 @@ def norm_file(path, colum):
     df.to_csv(path, index=False)
     return df
 
-def norm_calibrate(path, colum, date='2020-12-05 14:28:33'):
+def norm_calibrate(path, colum, date='2020-12-12 10:25:15'):
     """normalize irradiance data according to a certain value of the data
     
     path: str of the path of the file
     colum: str of the colum we want to normalize with itself
-    date: str of the date the certain value is ('2020-12-05 14:28:33' by default)
+    date: str of the date the certain value is ('2020-12-12 10:25:15' by default)
 
     return the dataframe and update the csv
     """
@@ -152,7 +152,7 @@ def norm_calibrate(path, colum, date='2020-12-05 14:28:33'):
     ref_ira = np.mean(ira.loc[indexref-1:indexref+1])
     norm_ira = []
     for value in ira:
-        norm_ira.append(value/(ref_ira*80))
+        norm_ira.append(value/(ref_ira*83))
     df[f'{colum} self-norm'] = norm_ira
     df.to_csv(path, index=False)
     return df
@@ -435,38 +435,71 @@ def check_eff(path):
             print("{} {}: {}, {}, {}".format(i, col, len(eff), max(data[col]), min(data[col])))
     pass
 
-def organize_data(path, colum):
+def dates_problem(path, colum):
+    """ Find the problematic dates of a csv file. In other words, check if the values of a day start by decreasing.
+
+    path: str of the path of the file
+    colum: str of the name of the colum we want to check
+
+    return the list of the dates corresponding to the actual beginning of the day 
+    """
     data = pd.read_csv(path)
     df = pd.DataFrame({f'{colum}': data[colum].to_list()}, index=data['date'].to_list())
     date1 = df.index[0]
-    n, count = 1, 0
+    dates = []
     for i, date2 in enumerate(df.index[1:]):
         if date1[:10] != date2[:10]:
             a = df[colum].iloc[i+1:i+4].mean()
             b = df[colum].iloc[i+4:i+7].mean()
             if (a > b and a-b > 0.0002) or date2[:10] == '2021-04-07':
-                day_am = df.loc[(df.index > date2) & (df.index < f'{date2[:10]} 12{date2[13:]}')]
+                day_am = df.loc[(df.index >= date2) & (df.index < f'{date2[:10]} 12{date2[13:]}')]
                 if day_am.empty:
                     continue
                 dmin = day_am[colum].astype(float).idxmin()
-                wrongdates = day_am.loc[:dmin].iloc[:-1]
-                if wrongdates.empty:
+                dates.append(dmin)
+        date1 = date2
+    print('\n')
+    return dates
+
+def organize_data(path, colum, newname, dates):
+    """ Replace the problematic dates entered to the proper day (the day before)
+
+    path: str of the path of the file
+    colum: str of the name of the colum we want to correct
+    newname: str of the name of the file modified
+    dates: list of the problematic dates (in str) we need to correct (see the fonction dates_problem)
+
+    return the new dataframe and save it if all the dates were modified only once
+    if not raise a ValueError
+    """
+    data = pd.read_csv(path)
+    df = pd.DataFrame({f'{colum}': data[colum].to_list()}, index=data['date'].to_list())
+    date1 = df.index[0]
+    n, count, x = 1, 0, len(dates)
+    for i, date2 in enumerate(df.index[1:]):
+        if date1[:10] != date2[:10]:
+            for dmin in dates:
+                if date2[:10] == dmin[:10]:
+                    wrongdates = df.loc[date2:dmin].iloc[:-1]
+                    if wrongdates.empty:
+                        continue
+                    wrongstart = dt.strptime(date2, '%Y-%m-%d %H:%M:%S')
+                    realstart = dt.strptime(date1, '%Y-%m-%d %H:%M:%S')
+                    for i, date in enumerate(wrongdates.index):
+                        realdate = dt.strftime((dt.strptime(date, '%Y-%m-%d %H:%M:%S')-wrongstart+realstart), '%Y-%m-%d %H:%M:%S')
+                        data.loc[data['date'] == date, 'date'] = realdate
+                    count += 1
+                    dates.remove(dmin)
                     continue
-                wrongstart = dt.strptime(date2, '%Y-%m-%d %H:%M:%S')
-                realstart = dt.strptime(date1, '%Y-%m-%d %H:%M:%S')
-                for i, date in enumerate(wrongdates.index):
-                    realdate = dt.strftime((dt.strptime(date, '%Y-%m-%d %H:%M:%S')-wrongstart+realstart), '%Y-%m-%d %H:%M:%S')
-                    data.loc[data['date'] == date, 'date'] = realdate
-                count += 1
         date1 = date2
         if (i+1) >= df.shape[0]*n/10:
-            a = (i+1)/df.shape[0]*100
-            print(a)
+            print((i+1)/df.shape[0]*100)
             n += 1
-    data.to_csv(path, index=False)
-    return count
-
-
+    if count == x != 0 and len(dates) == 0:
+        data.to_csv(f'{newname}.csv', index=False)
+        return data
+    else:
+        raise ValueError("the correction did not work, see the lenght of the variable 'dates'")
 
 #enter your path here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\DATA-Ordered2.xlsx'
@@ -474,8 +507,38 @@ path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
 # newname = 
 headers = ['date', 'irr']
 colums = ['irradiance_denoisedL self-norm', 6]
-# print(Exceltocsv(path2, '400F1000', headers, 'Field400', header=2, colums='A, J'))
+dates = [
+    '2020-12-25 09:40:55',
+    '2020-12-26 07:01:30',
+    '2021-01-27 07:02:23',
+    '2021-02-24 07:13:18',
+    '2021-03-01 08:07:04',
+    '2021-03-04 07:11:16',
+    '2021-03-11 07:30:11',
+    '2021-03-14 07:55:09',
+    '2021-03-15 08:04:01',
+    '2021-03-16 07:49:33',
+    '2021-03-17 07:46:39',
+    '2021-03-18 07:55:57',
+    '2021-03-19 07:48:06',
+    '2021-03-20 07:58:11',
+    '2021-03-21 07:47:56',
+    '2021-03-22 07:46:51',
+    '2021-03-23 07:44:18',
+    '2021-03-24 07:55:42',
+    '2021-03-27 08:04:56',
+    '2021-03-28 08:46:11',
+    '2021-03-30 08:04:28',
+    '2021-03-31 09:30:57',
+    '2021-04-03 07:46:12',
+    '2021-04-04 07:42:38',
+    '2021-04-05 07:49:42',
+    '2021-04-06 08:36:31',
+    '2021-04-07 08:15:32',
+    '2021-04-08 08:28:13'
+    ]
+# print(Exceltocsv(path1, f'{path2}400F{c}-raw', headers, sheet_name='Field400', header=2, startrow=418, colums=f'A,{i}'))
 # check_eff(f'{path1}path.csv')
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
 for c, i in cols:
-    print(organize_data(f'{path2}400F{c}.csv', headers[1]))
+    print(dates_problem(f'{path2}400F{c}-raw.csv', 'irr'))
