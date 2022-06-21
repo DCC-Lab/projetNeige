@@ -52,23 +52,24 @@ def twograhs(path1, path2, title, yaxis, scale):
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\path.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F1375.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
 # names = {'A': 'Automatic', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent'}
 
-yaxis = ['irradiance', 'irradiance']
+yaxis = ['irr', 'irr']
 # df = pd.read_csv(path1)
 # ira = df[yaxis[1]]
 # ref = df[yaxis[0]]
 # indexref = df.loc[ref == max(ref)].index[0]
 # max_ira = ira.loc[indexref]
 scale = [[-0.1, 2], [-0.1, 2]]
-
+cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
+for c, i in cols:
 #show and save figure
-# fig = twograhs(path2, path1, '400F1375', yaxis, scale)
-# fig.show()
-# fig.write_html('all_400F325_norm1200-4B.html')
+    fig = twograhs(f'{path2}400F{c}-raw.csv', f'{path2}400F{c}.csv', f'400F{c}', yaxis, scale)
+    fig.show()
+    fig.write_html(f'all_400F{c}-corr.html')
 
-fig = graphheight(path2, title='400F1375')
-fig.show()
+# fig = graphheight(path2, title='400F1375')
+# fig.show()
 # fig.write_html('all_400F1000.html')
