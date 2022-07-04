@@ -244,45 +244,83 @@ def norm_irradiance(path, pathref, columns, newname):
     file.to_csv(f"{newname}.csv", index=False)
     return (len(eff_ref), max(eff_ref), min(eff_ref))
 
-def norm_CRN4(path, pathref, newname):
+def norm_CRN4(path, pathref, columns, newname, window=5, order=0, how=['mean', 'median']):
     """normalize irradiance data according to a certain reference (i0) who don't have the same timestamp 
     
     path: str of the path of the file in question
     pathref: str of the path of the file who is the reference
+    columns: list of the name of the columns we want (first the one we want to normalize, second the reference)
     newname: str of the name of the dataframe returned
+    window: int of the number of minutes that we use for the mean/median (5 by default)
+    order: int between 0 and 1 -- 1 represent the (rolling) mean/median at the right and 0 at the center (0 by default)
+    how: list of the name of the method(s) used for the (rolling) ""mean/median"" (both by default)
 
     return dataframe and save csv
     """
-    crn4 = pd.read_csv(pathref, header=0)
-    cap = pd.read_csv(path, header=0)
-    j=0
-    rowscrn = crn4.shape[0]
-    rowscap = cap.shape[0]
+    if (how not in ['mean', 'median'] and how != ['mean', 'median']) or (order not in [0, 1]):
+        raise NotImplemented
+    reference = pd.read_csv(pathref, header=0)
+    study = pd.read_csv(path, header=0)
+    j, n = 0, 0
+    rowsref = reference.shape[0]
+    rowsstu = study.shape[0]
     dicto = {}
-    for date in crn4['date']:
+    for date in reference['date']:
         dicto[date] = []
-    for i in range(rowscap):
-        s1 = cap['date'][i]
+    for i in range(rowsstu):
+        s1 = study['date'][i]
         date1 = dt.strptime(s1, '%Y-%m-%d %H:%M:%S')
-        print(i/rowscap*100)
+        if (i+1) >= rowsstu*n/10:
+                print((i+1)/rowsstu*100)
+                n +=1
         while True:
-            if j >= rowscrn:
+            if j >= rowsref:
                 break
-            s2 = crn4['date'][j]
+            s2 = reference['date'][j]
             date2 = dt.strptime(s2, '%Y-%m-%d %H:%M:%S')
             delta = (date2 - date1).total_seconds()
-            if delta < -300:
-                j += 1
-            elif delta <= 300 and delta >= -300:
-                dicto[s2].append(cap['irradiance self-normalized'][i])
-                break
+            if order == 0:
+                if delta < -window*60:
+                    j += 1
+                elif delta <= window*60 and delta >= -window*60:
+                    dicto[s2].append(study[columns[0]][i])
+                    break
+                else:
+                    break
             else:
-                break
-        if j > rowscrn:
+                if delta < 0:
+                    j += 1
+                elif delta <= window*60 and delta >= 0:
+                    dicto[s2].append(study[columns[0]][i])
+                    break
+                else:
+                    break
+        if j > rowsref:
             break
-    df = pd.DataFrame({'date': dicto.keys(), 'ref':crn4['iswr self-normalized'], 'list': dicto.values()})
-    df.to_csv(f"{newname}.csv", index=False)
-    return df
+    data = pd.DataFrame({'date': dicto.keys(), 'ref':reference[columns[1]], 'list': dicto.values()})
+    for method in how:
+        values = []
+        eff = []
+        for i, liste in enumerate(data['list']):
+            if liste != [] and data['ref'][i] != 0:
+                if method == 'mean':
+                    value = np.mean(liste/data['ref'][i])
+                else:
+                    value = np.median(liste/data['ref'][i])
+                values.append(value)
+                if value > 2  or value < -1:
+                    eff.append(value)
+            else:
+                values.append(np.nan)
+        data[f'{method}_norm'] = values
+        if len(eff) == 0:
+            print(len(eff), max(values), min(values))
+        else:
+            print(len(eff), max(eff), min(eff))
+    data.pop('ref')
+    data.pop('list')
+    data.to_csv(f'{newname}.csv', index=None)
+    return data
 
 def norm_std(path, column, columref):
     """normalize irradiance data according to the max value of the data of another column
@@ -390,7 +428,7 @@ def denoise_mea(path, column, order=1, window=7):
     path: str of the path of the file
     column: str of the name of the column we want to denoise
     order: 1 or -1, way of the moving average (left to right or the opposite)
-    window: int of the number of data we use for the mean (7 minutes by default)
+    window: int of the number of minutes we use for the mean (7 minutes by default)
 
     return dataframe and update the csv
     """
@@ -411,7 +449,7 @@ def denoise_exp(path, column, order=1, window=7):
     
     path: str of the path of the file
     column: str of the name of the column we want to denoise
-    window: int of the number of data we use for the mean (7 minutes by default)
+    window: int of the number of minutes we use for the mean (7 minutes by default)
 
     return dataframe and update the csv
     """
@@ -434,7 +472,7 @@ def denoise_med(path, column, order=-1, window=15):
     path: str of the path of the file
     column: str of the name of the column we want to denoise
     order: 1 or -1, way of the moving median (right to left or the opposite)
-    window: int of the number of data we use for the mean (15 minutes by default)
+    window: int of the number of minutes we use for the mean (15 minutes by default)
 
     return dataframe and update the csv
     """
@@ -541,11 +579,11 @@ def find_height(path, height):
     pass
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heights.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\date weather.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\precipitations.csv'
 # newname = 
-headers = ['date', 'height']
-names = ['heightsM-T4withM.csv', 'all_heightsA.csv']
+headers = ['date', 'precipitation']
+columns = ['precipitation', 'Nothing']
 dates = [
     '2020-12-25 09:40:55',
     '2020-12-26 07:01:30',
@@ -576,10 +614,9 @@ dates = [
     '2021-04-07 08:15:32',
     '2021-04-08 08:28:13'
     ]
-# print(joincsvfiles(path1, 'qq', 'all_heightsACFM'))
-
+print(norm_CRN4(path2, path1, columns, 'weather', window=900, order=1))
+# print(add_id(path1, 'Nothing', 1))
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
 # for c, i in cols[:3]:
 #     for co, il in cols[3:]:
-df = pd.read_csv(path1)
-print(df.info())
+
