@@ -1,3 +1,5 @@
+from operator import index
+from unittest import result
 import pandas as pd
 import os
 import glob
@@ -7,6 +9,7 @@ import numpy as np
 import ast
 import scipy.signal as ss
 
+# Read fonctions
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None):
     """read an Excel file and transform the useful data in a csv
     
@@ -27,6 +30,7 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=
     data.to_csv(f"{name}.csv", index=False)
     return data
 
+# Modify many files
 def joincsvfilescom(path, common, newname):
     """join csv files with a similar name in alphabetic order
     
@@ -102,6 +106,7 @@ def renamefiles_asDanwishes(path):
     print("It's done!")
     return "Yeah :)"
 
+# Modify one file/dataframe
 def add_id(path, name_id, id):
     """add a column of the same id to all the data of the file chosen
     
@@ -155,6 +160,7 @@ def find_dates(path, dates, newname, headers, cols=None):
     data.to_csv(f"{newname}.csv", index=False, header=headers)
     return data
 
+# Normalization fonctions
 def norm_file(path, column):
     """normalize irradiance data according to the max value of the data
     
@@ -351,49 +357,7 @@ def norm_std(path, column, columref):
         a, b, c = len(eff), max(eff), min(eff)
     return (a, b, c)
 
-def same_date(s1, s2, resolution):
-    """find the difference between 2 dates and return True if the difference is less than the resolution, no matter the order the dates are entered (if not retrun False)
-    s1: str of the first date of format '%Y-%m-%d %H:%M:%S'
-    s2: str of the second date of format '%Y-%m-%d %H:%M:%S'
-    resolution: time interval in seconds where the dates are assumed to be the same 
-
-    return: a bool of the answer
-    """
-    date1 = dt.strptime(s1, '%Y-%m-%d %H:%M:%S')
-    date2 = dt.strptime(s2, '%Y-%m-%d %H:%M:%S')
-    a = (date2 - date1).total_seconds()
-    if a <= resolution and a >= -resolution:
-        return True
-    return False
-
-def stats(path, column):
-    """ calculate the mean and the median of each list in a dataframe of lists
-    
-    path: str of the path of the file
-    column: str of the name of the column of the lists
-    """
-    data = pd.read_csv(path, header=0)
-    moy = []
-    med = []
-    eff_refy = []
-    eff_refd = []
-    for i, str in enumerate(data[column]):
-        liste = ast.literal_eval(str)
-        if liste and data['ref'][i] != 0:
-            moy.append(np.mean(liste)/data['ref'][i])
-            med.append(np.median(liste)/data['ref'][i])
-            if np.mean(liste)/data['ref'][i] > 2:
-                eff_refy.append(np.mean(liste)/data['ref'][i])
-            if np.median(liste)/data['ref'][i] > 2:
-                eff_refd.append(np.median(liste)/data['ref'][i])
-        else:
-            moy.append(np.nan)
-            med.append(np.nan)
-    data['mean_norm'] = moy
-    data['median_norm'] = med
-    data.to_csv(path, index=None)
-    return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
-
+# Denoise fonctions
 def denoise_but(path, column, filter=0.1):
     """ denoise by a filter a column of a certain csv file
     
@@ -488,6 +452,7 @@ def denoise_med(path, column, order=-1, window=15):
     data.to_csv(path, index=False)
     return data
 
+# Various fonctions
 def check_eff(path):
     """Run a kind of evaluation of the data and print the max and min value plus the number of data who are out of a certain range
     for each column of the file
@@ -509,6 +474,50 @@ def check_eff(path):
             print("{} {}: {}, {}, {}".format(i, col, len(eff), max(data[col]), min(data[col])))
     pass
 
+def same_date(s1, s2, resolution):
+    """find the difference between 2 dates and return True if the difference is less than the resolution, no matter the order the dates are entered (if not retrun False)
+    s1: str of the first date of format '%Y-%m-%d %H:%M:%S'
+    s2: str of the second date of format '%Y-%m-%d %H:%M:%S'
+    resolution: time interval in seconds where the dates are assumed to be the same 
+
+    return: a bool of the answer
+    """
+    date1 = dt.strptime(s1, '%Y-%m-%d %H:%M:%S')
+    date2 = dt.strptime(s2, '%Y-%m-%d %H:%M:%S')
+    a = (date2 - date1).total_seconds()
+    if a <= resolution and a >= -resolution:
+        return True
+    return False
+
+def stats(path, column):
+    """ calculate the mean and the median of each list in a dataframe of lists
+    
+    path: str of the path of the file
+    column: str of the name of the column of the lists
+    """
+    data = pd.read_csv(path, header=0)
+    moy = []
+    med = []
+    eff_refy = []
+    eff_refd = []
+    for i, str in enumerate(data[column]):
+        liste = ast.literal_eval(str)
+        if liste and data['ref'][i] != 0:
+            moy.append(np.mean(liste)/data['ref'][i])
+            med.append(np.median(liste)/data['ref'][i])
+            if np.mean(liste)/data['ref'][i] > 2:
+                eff_refy.append(np.mean(liste)/data['ref'][i])
+            if np.median(liste)/data['ref'][i] > 2:
+                eff_refd.append(np.median(liste)/data['ref'][i])
+        else:
+            moy.append(np.nan)
+            med.append(np.nan)
+    data['mean_norm'] = moy
+    data['median_norm'] = med
+    data.to_csv(path, index=None)
+    return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
+
+# Correct raw data
 def dates_problem(path, column):
     """ Find the problematic dates of a csv file. In other words, check if the values of a day start by decreasing.
 
@@ -575,12 +584,77 @@ def organize_data(path, column, newname, dates):
     else:
         raise ValueError("the correction did not work, see the lenght of the variable 'dates'")
 
-def find_height(path, height):
+# Identify periods
+def find_period(path, height, window=[-3, 3]):
+    """find differents periods where the height of a file is between the window entered
+    
+    path: str of the path of the file
+    height: float of the height we want to analyse
+    window: list of float that reprensent the range of values around the height we want
+
+    return a dataframe of the periods of time (and height assciate) with the type (start, end, only) of the date
+    """
+    data = pd.read_csv(path).sort_values(by='date', ignore_index=True)
+    period = data.loc[data['height'] >= height+window[0]]
+    period = period.loc[period['height'] <= height+window[1]]
+    a = period.index[0]
+    start, end = [a], []
+    for b in period.index[1:]:
+        if a+1 != b:
+            start.append(b)
+            end.append(a)
+        a = b
+    end.append(b)
+    only = list(set(start) & set(end))
+    print(only)
+    first, second, alone = data.iloc[start, :2], data.iloc[end, :2], data.iloc[only, :2]
+    first, second = first.drop(index=only), second.drop(index=only)
+    first['type'], second['type'], alone['type'] = ['start' for _ in range(len(start)-len(only))], ['end' for _ in range(len(end)-len(only))], ['only' for _ in range(len(only))]
+    result = pd.concat([first, second, alone], axis=0).sort_index()
+    return result.reset_index(drop=True)
+
+def find_weather(path, weather=71, window=[-2, 6], night=True):
+    """find significative periods where the weather of a file is between the window entered
+    
+    path: str of the path of the file
+    weather: float between 0 and 89 of the value of weather we want to analyze
+             (50-59: soft rain, 60-69: rain, 70-79: snow, 80-89: hail)
+    window: list of float that reprensent the range of values around the weather we want
+    night: bool to precise if we want the values during the night or not (Yes/True by default)
+
+    return a dataframe of the periods of time (and weather associate) with the type (start, end) of the date
+    """
+    data = pd.read_csv(path).sort_values(by='date', ignore_index=True)
+    period = data.loc[data['median_norm 900-1'] >= weather+window[0]]
+    period = period.loc[period['median_norm 900-1'] <= weather+window[1]]
+    if night is False:
+        period = period.drop(index=(i for i, date, mea, med in period.itertuples() if date[11:16] > '20:15' or date[11:16] < '06:25'))
+    a, c = period.index[0], period.index[0]
+    start, end = [], []
+    for b in period.index[1:]:
+        if a+2 < b:
+            if a-c > 2 or a-c == 0:
+                start.append(c)
+                end.append(a)
+            c = b
+        a = b
+    start.append(c)
+    end.append(a)
+    only = list(set(start) & set(end))
+    first, second = data.iloc[start, [0, 2]], data.iloc[end, [0, 2]]
+    first, second = first.drop(index=only), second.drop(index=only)
+    first['type'], second['type'] = ['start' for _ in range(len(start)-len(only))], ['end' for _ in range(len(end)-len(only))]
+    result = pd.concat([first, second], axis=0).sort_index()
+    return result.reset_index(drop=True).to_string()
+
+def whatweather():
+
+
     pass
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\date weather.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\precipitations.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsT4.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\weather.csv'
 # newname = 
 headers = ['date', 'precipitation']
 columns = ['precipitation', 'Nothing']
@@ -614,7 +688,7 @@ dates = [
     '2021-04-07 08:15:32',
     '2021-04-08 08:28:13'
     ]
-print(norm_CRN4(path2, path1, columns, 'weather', window=900, order=1))
+print(find_weather(path2, 71, [0, 0]))
 # print(add_id(path1, 'Nothing', 1))
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
 # for c, i in cols[:3]:
