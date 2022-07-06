@@ -60,7 +60,7 @@ scale=[[0, 90], [0, 90]]
 #show and save figure
 fig = twograhs(path2, path1, 'weather-height', yaxis, scale)
 fig.show()
-fig.write_html(f'all_heightsACFM+weather_med900-1.html')
+# fig.write_html(f'all_heightsACFM+weather_med900-1.html')
 
 # fig = graphheight(path2, yaxis, title='Precipitations')
 # fig.show()
