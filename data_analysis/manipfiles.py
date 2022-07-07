@@ -8,6 +8,7 @@ from datetime import timedelta as td
 import numpy as np
 import ast
 import scipy.signal as ss
+import scipy.interpolate as sint
 
 # Read fonctions
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None):
@@ -159,6 +160,43 @@ def find_dates(path, dates, newname, headers, cols=None):
     data = pd.read_csv(path, header=None, usecols=cols, skiprows= lambda x: x not in rows_to_keep)
     data.to_csv(f"{newname}.csv", index=False, header=headers)
     return data
+
+def correct_data(path, column, scale, correction, newname):
+    """Correct specific values of a file by adding a number
+
+    path: str of the path of the file
+    column: str of the name of the column we want to correct
+    scale: range of the index where we want to correct the data
+    correction: float we add to the data selected
+    newname: str of the name of the dataframe returned
+
+    return a dataframe and save csv
+    """
+    df = pd.read_csv(path)
+    for i in range(df.shape[0]):
+        if i in list(scale):
+            print(df.at[i, 'date'])
+            df.at[i, column] += correction
+    df.to_csv(f'{newname}.csv', index=False)
+    return df
+
+def move_data(path, column, offset):
+    """Move the data to the "left" or "up" on a file according a certain offset
+
+    path: str of the path of the file
+    column: str of the name of the column we want to move
+    offset: int representing the number of data points removed at the beginning of the set, thus creating the shift
+    
+    return dataframe and update csv
+    """
+    df = pd.read_csv(path)
+    values = df[column].to_list()
+    values = values[offset:]
+    for _ in range(offset):
+        values.append(np.median(values[-3:]))
+    df[f'{column} moved'] = values
+    df.to_csv(path, index=False)
+    return df
 
 # Normalization fonctions
 def norm_file(path, column):
@@ -441,14 +479,15 @@ def denoise_med(path, column, order=-1, window=15):
     return dataframe and update the csv
     """
     dic = {1: 'L', -1: 'R'}
-    data = pd.read_csv(path)
+    data = pd.read_csv(path).sort_values(by='date', ignore_index=True) # date must be monotonic
     y = data[column].to_list()
     dates = []
     for date in data['date']:
         dates.append(dt.strptime(date, '%Y-%m-%d %H:%M:%S'))
-    df = pd.DataFrame({'date': dates[::order], f'{column}': y[::order]})
-    w = df.rolling(f'{window}T', on='date').median()
+    df = pd.DataFrame({'date': dates[::order], f'{column}': y[::order]}, index=data.index)
+    w = df.rolling(f'{window}H', on='date').median()
     data[f"{column}_denoised{dic[order]}"] = w.iloc[:, 1].to_list()[::order]
+    data.sort_index()
     data.to_csv(path, index=False)
     return data
 
@@ -585,18 +624,21 @@ def organize_data(path, column, newname, dates):
         raise ValueError("the correction did not work, see the lenght of the variable 'dates'")
 
 # Identify periods
-def find_period(path, height, window=[-3, 3]):
+def find_height(path, height, window=[-3, 3], night=True):
     """find differents periods where the height of a file is between the window entered
     
     path: str of the path of the file
     height: float of the height we want to analyse
     window: list of float that reprensent the range of values around the height we want
+    night: bool to precise if we want the values during the night or not (Yes/True by default)
 
-    return a dataframe of the periods of time (and height assciate) with the type (start, end, only) of the date
+    return a dataframe of the periods of time (and height associate) with the type (start, end, only) of the date
     """
     data = pd.read_csv(path).sort_values(by='date', ignore_index=True)
     period = data.loc[data['height'] >= height+window[0]]
     period = period.loc[period['height'] <= height+window[1]]
+    if night is False:
+        period = period.drop(index=(i for i, date, height, pole, met in period.itertuples() if date[11:16] > '20:15' or date[11:16] < '06:25'))
     a = period.index[0]
     start, end = [a], []
     for b in period.index[1:]:
@@ -606,12 +648,11 @@ def find_period(path, height, window=[-3, 3]):
         a = b
     end.append(b)
     only = list(set(start) & set(end))
-    print(only)
     first, second, alone = data.iloc[start, :2], data.iloc[end, :2], data.iloc[only, :2]
     first, second = first.drop(index=only), second.drop(index=only)
     first['type'], second['type'], alone['type'] = ['start' for _ in range(len(start)-len(only))], ['end' for _ in range(len(end)-len(only))], ['only' for _ in range(len(only))]
     result = pd.concat([first, second, alone], axis=0).sort_index()
-    return result.reset_index(drop=True)
+    return pd.DataFrame(result.reset_index(drop=True)) #
 
 def find_weather(path, weather=71, window=[-2, 6], night=True):
     """find significative periods where the weather of a file is between the window entered
@@ -645,16 +686,105 @@ def find_weather(path, weather=71, window=[-2, 6], night=True):
     first, second = first.drop(index=only), second.drop(index=only)
     first['type'], second['type'] = ['start' for _ in range(len(start)-len(only))], ['end' for _ in range(len(end)-len(only))]
     result = pd.concat([first, second], axis=0).sort_index()
-    return result.reset_index(drop=True).to_string()
+    return result.reset_index(drop=True)
 
-def whatweather():
+def find_periods(pathhei, pathwea, heightw, weatherw, night=True):
+    """find time periods in common where the height and the weather entered are between the windows entered
+
+    pathhei: str of the path of the file of the height
+    pathwea: str of the path of the file of the weather (reference)
+    heightw: list of the value and the window (list of the lower and upper bound) associated to the pathhei
+    weatherw: list of the value and the window (list of the lower and upper bound) associated to the pathwea
+    night: bool to precise if we want the values during the night or not (Yes/True by default)
+
+    return a dataframe of the periods of time (and height and weather associated) with the type (start, end, only) of the date
+    """
+    dataheights = pd.read_csv(pathhei).sort_values(by='date', ignore_index=True)
+    dataweather = pd.read_csv(pathwea).sort_values(by='date', ignore_index=True)
+    datesweather, datesheights = dataweather['date'].tolist(), dataheights['date'].tolist()
+    dfhei = find_height(pathhei, heightw[0], window=heightw[1], night=night)
+    dfwea = find_weather(pathwea, weatherw[0], window=weatherw[1], night=night)
+    df = pd.DataFrame({'date': [], 'type': [], 'height': [], 'weather': []})
+    dates = dfhei['date'].tolist()
+    for i, startref, x, y in dfwea.loc[dfwea['type'] == 'start'].itertuples():
+        j, starthei = find_closestdate(startref, dates, order=1)
+        endref = dfwea['date'][i+1]
+        if j is False or dfhei['type'][j] != 'start':
+            j, datehei = find_closestdate(startref, dates, order=-1)
+            if j is not False:
+                if dfhei['type'][j] == 'start':
+                    starthei = datehei
+                    endhei = dfhei['type'][j+1]
+                elif dfhei['type'][j] == 'only':
+                    onlyhei = datehei
+                    starthei, endhei = False, False
+        else:
+            endhei = dfhei['date'][j+1]
+        if starthei == False:
+            if (startref <= onlyhei and endref >= onlyhei):
+                x, date = find_closestdate(onlyhei, datesweather, order=0)
+                df.loc[len(df.index)] = [onlyhei, 'only', dfhei['height'][j], dataweather['median_norm 900-1'][x]]
+        elif starthei >= startref and starthei < endref:
+            x, date = find_closestdate(starthei, datesweather, order=0)
+            df.loc[len(df.index)] = [starthei, 'start', dfhei['height'][j], dataweather['median_norm 900-1'][x]]
+        elif starthei <= startref and startref < endhei:
+            x, date = find_closestdate(startref, datesheights, order=0)
+            df.loc[len(df.index)] = [startref, 'start', dataheights['height'][x], dfwea['median_norm 900-1'][i]]
+
+        if endhei == False:
+            continue
+        elif endhei <= endref and endhei > startref:
+            x, date = find_closestdate(endhei, datesweather, order=0)
+            df.loc[len(df.index)] = [endhei, 'end', dfhei['height'][j+1], dataweather['median_norm 900-1'][x]]
+        elif endhei >= endref and endref > starthei:
+            x, date = find_closestdate(endref, datesheights, order=0)
+            df.loc[len(df.index)] = [endref, 'end', dataheights['height'][x], dfwea['median_norm 900-1'][i+1]]
+
+        if starthei == endref:
+            df.loc[len(df.index)] = [starthei, 'only', dfhei['height'][j], dfwea['median_norm 900-1'][i+1]]
+        elif startref == endhei:
+            df.loc[len(df.index)] = [endhei, 'only', dfhei['height'][j+1], dfwea['median_norm 900-1'][i]]
+    return df
+
+def find_closestdate(ref, dates, order=1):
+    """ find the closest date to a reference among a list of dates
+
+    ref: str of the date we want to find the closest (in the format '%Y-%m-%d %H:%M:%S')
+    dates: list of dates (string) not necessarily in order (in the format '%Y-%m-%d %H:%M:%S')
+    order: int equal to -1, 1 or 0 who specify if we want the closest date only after it, before it or it doesn't matter (before by default)
+    
+    return a tuple of the index of the date in the list and the date (in string)
+    """
+    int = False
+    ref = dt.strptime(ref, '%Y-%m-%d %H:%M:%S')
+    diff = 10**20
+    for i, date in enumerate(dates):
+        date = dt.strptime(date, '%Y-%m-%d %H:%M:%S')
+        if order in [1, -1]:
+            delta = (ref - date).total_seconds()*order
+        if order == 0:
+            delta = abs((ref - date).total_seconds())
+        if delta < diff and delta >= 0:
+            diff = delta
+            int, result = i, date
+    if int is False:
+        return (False, False)
+    else:
+        return (int, dt.strftime(result, '%Y-%m-%d %H:%M:%S'))
 
 
-    pass
+def interpolate(path, newname):
+    data = pd.read_csv(path, parse_dates=['date'])
+    dates, values = data['date'], data['h_dL m']
+    df = pd.DataFrame({'h_dL m': values.to_list()}, index=dates)
+    resampled = df.resample('S')
+    interp = resampled.interpolate()
+    interp.to_csv(f'{newname}.csv', index=True)
+    return interp
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsT4.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\weather.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\heightsV.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
 # newname = 
 headers = ['date', 'precipitation']
 columns = ['precipitation', 'Nothing']
@@ -688,9 +818,10 @@ dates = [
     '2021-04-07 08:15:32',
     '2021-04-08 08:28:13'
     ]
-print(find_weather(path2, 71, [0, 0]))
-# print(add_id(path1, 'Nothing', 1))
+
+print(interpolate(path1, 'all_heightsV-interpolated'))
+
+
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
 # for c, i in cols[:3]:
 #     for co, il in cols[3:]:
-
