@@ -39,7 +39,7 @@ def twograhs(path1, path2, title, yaxis, scale):
     data1 = pd.read_csv(path1)
     data2 = pd.read_csv(path2)
     trace1 = go.Scatter(x=data1['date'], y=data1[yaxis[0]], yaxis='y', mode='markers', name=yaxis[0], opacity=0.5)
-    trace2 = go.Scatter(x=data2['date'], y=data2[yaxis[1]], yaxis="y2", mode='markers', name=yaxis[1], opacity=0.5)
+    trace2 = go.Scatter(x=data2['date'], y=data2[yaxis[1]], yaxis="y2", mode='lines', name=yaxis[1], opacity=0.5)
 
     fig = make_subplots(specs=[[{"secondary_y": True}]], shared_yaxes='all', shared_xaxes='all')
     fig.add_trace(trace1)
@@ -50,18 +50,18 @@ def twograhs(path1, path2, title, yaxis, scale):
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsACFM.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\weather.csv'
-names = {'A': 'Automatic', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent'}
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\heightsV.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\all_heightsAFMV.csv'
+names = {'A': 'Automatic', 'B': 'Benjamin', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent', 'V': 'Valérie'}
 
-yaxis = ['median_norm', 'height']
+yaxis = ['height', 'height_denoisedL moved']
 scale=[[0, 90], [0, 90]]
 
 #show and save figure
-fig = twograhs(path2, path1, 'weather-height', yaxis, scale)
+fig = twograhs(path2, path1, 'heights', yaxis, scale)
 fig.show()
-# fig.write_html(f'all_heightsACFM+weather_med900-1.html')
+fig.write_html(f'all_heightsAFMV-withline.html')
 
-# fig = graphheight(path2, yaxis, title='Precipitations')
+# fig = graphheight(path1, yaxis, title='Heights V median', realnames=names, color='method')
 # fig.show()
-# fig.write_html(f'precipitations-mean.html')
+# fig.write_html(f'all_heightsAFMV.html')
