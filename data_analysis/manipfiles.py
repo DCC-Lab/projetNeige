@@ -9,6 +9,8 @@ import numpy as np
 import ast
 import scipy.signal as ss
 import scipy.interpolate as sint
+from sklearn.metrics import r2_score
+from scipy.optimize import curve_fit
 
 # Read fonctions
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None):
@@ -140,27 +142,6 @@ def stripcolums(path, columns):
     df.to_csv(path, index=False)
     return df
 
-def find_dates(path, dates, newname, headers, cols=None):
-    """take only the data from a or many specific date/s
-    
-    path: str of the path of the file
-    dates: list of str of the part of time we want to regroup (ex: '2021-01', all of the data in january)
-    newname: name of the file with the data filtred
-    headers: name of the columns of the new file
-    cols: list of the columns' index we want to conserve, all by default
-
-    return the dataframe and save csv
-    """
-    df = pd.read_csv(path, header=0)
-    rows_to_keep = []
-    for date in dates:
-        for i, datehour in enumerate(df['date']):
-            if date in datehour:
-                rows_to_keep.append(i+1)
-    data = pd.read_csv(path, header=None, usecols=cols, skiprows= lambda x: x not in rows_to_keep)
-    data.to_csv(f"{newname}.csv", index=False, header=headers)
-    return data
-
 def correct_data(path, column, scale, correction, newname):
     """Correct specific values of a file by adding a number
 
@@ -195,6 +176,49 @@ def move_data(path, column, offset):
     for _ in range(offset):
         values.append(np.median(values[-3:]))
     df[f'{column} moved'] = values
+    df.to_csv(path, index=False)
+    return df
+
+def add_luminosity(path, pathlum='C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\luminosity.csv'):
+    """Add a column representing the sun level on a file where the dates are the date and the time in the same column
+
+    path: str of path of the file
+    pathlum: str of the file with the sun level according to the date
+
+    return the dataframe and update it
+    """
+    data, dflum = pd.read_csv(path), pd.read_csv(pathlum)
+    liste, dates = [], dflum['date'].to_list()
+    for date in data['date']:
+        if date[:10] in dates:
+            liste.append(dflum.loc[dflum['date'] == date[:10]]['sun level'].to_list()[0])
+        else:
+            liste.append(np.nan)
+    data['sun level'] = liste
+    data.to_csv(path, index=False)
+    return data
+
+def classify_dates(path=None, df=None):
+    """add two columns to a dataframe to add a specific id for each day and another for each half hour independetly of the day
+
+    path: str of the file (df must be None to use it)
+    df: the dataframe 
+    
+    return the dataframe and updated it
+    """
+    if df is None and path is not None:
+        df = pd.read_csv(path, parse_dates=['date'])
+    else:
+        df['date'] = pd.to_datetime(df['date'])
+    
+    df["month"], df["day"], df["hour"], df["min"] = df["date"].dt.month, df["date"].dt.day, df["date"].dt.hour, df["date"].dt.minute//30
+    df["month"].loc[df["month"] == 12] = 0
+    df["min"].loc[df["min"] == 1] = 5
+    df.is_copy = False
+    df['id-day'], df['hour-min'] = (df["month"]+df["day"]/100), (df["hour"]+df["min"]/10)
+    df['id-hour'] = -abs(df['hour-min']-13)+7 # formula of the absolute value function where 13h is the horizontal center and the y values are arbitrary units
+    for col in ["month", 'day', 'hour', 'min', 'hour-min']:
+        df.pop(col)
     df.to_csv(path, index=False)
     return df
 
@@ -356,7 +380,7 @@ def norm_CRN4(path, pathref, columns, newname, window=5, order=0, how=['mean', '
                     eff.append(value)
             else:
                 values.append(np.nan)
-        data[f'{method}_norm'] = values
+        data[f'{method}_norm {window}={order}'] = values
         if len(eff) == 0:
             print(len(eff), max(values), min(values))
         else:
@@ -485,7 +509,7 @@ def denoise_med(path, column, order=-1, window=15):
     for date in data['date']:
         dates.append(dt.strptime(date, '%Y-%m-%d %H:%M:%S'))
     df = pd.DataFrame({'date': dates[::order], f'{column}': y[::order]}, index=data.index)
-    w = df.rolling(f'{window}H', on='date').median()
+    w = df.rolling(f'{window}T', on='date').median()
     data[f"{column}_denoised{dic[order]}"] = w.iloc[:, 1].to_list()[::order]
     data.sort_index()
     data.to_csv(path, index=False)
@@ -527,6 +551,32 @@ def same_date(s1, s2, resolution):
     if a <= resolution and a >= -resolution:
         return True
     return False
+
+def find_closestdate(ref, dates, order=1):
+    """ find the closest date to a reference among a list of dates
+
+    ref: str of the date we want to find the closest (in the format '%Y-%m-%d %H:%M:%S')
+    dates: list of dates (string) not necessarily in order (in the format '%Y-%m-%d %H:%M:%S')
+    order: int equal to -1, 1 or 0 who specify if we want the closest date only after it, before it or it doesn't matter (before by default)
+    
+    return a tuple of the index of the date in the list and the date (in string)
+    """
+    int = False
+    ref = dt.strptime(ref, '%Y-%m-%d %H:%M:%S')
+    diff = 10**20
+    for i, date in enumerate(dates):
+        date = dt.strptime(date, '%Y-%m-%d %H:%M:%S')
+        if order in [1, -1]:
+            delta = (ref - date).total_seconds()*order
+        if order == 0:
+            delta = abs((ref - date).total_seconds())
+        if delta < diff and delta >= 0:
+            diff = delta
+            int, result = i, date
+    if int is False:
+        return (False, False)
+    else:
+        return (int, dt.strftime(result, '%Y-%m-%d %H:%M:%S'))
 
 def stats(path, column):
     """ calculate the mean and the median of each list in a dataframe of lists
@@ -608,7 +658,7 @@ def organize_data(path, column, newname, dates):
                     wrongstart = dt.strptime(date2, '%Y-%m-%d %H:%M:%S')
                     realstart = dt.strptime(date1, '%Y-%m-%d %H:%M:%S')
                     for i, date in enumerate(wrongdates.index):
-                        realdate = dt.strftime((dt.strptime(date, '%Y-%m-%d %H:%M:%S')-wrongstart+realstart), '%Y-%m-%d %H:%M:%S')
+                        realdate = dt.strftime((dt.strptime(date, '%Y-%m-%d %H:%M:%S')-wrongstart+realstart+td(seconds=60)), '%Y-%m-%d %H:%M:%S')
                         data.loc[data['date'] == date, 'date'] = realdate
                     count += 1
                     dates.remove(dmin)
@@ -624,6 +674,27 @@ def organize_data(path, column, newname, dates):
         raise ValueError("the correction did not work, see the lenght of the variable 'dates'")
 
 # Identify periods
+def find_dates(path, dates, newname, headers, cols=None):
+    """take only the data from a or many specific date/s
+    
+    path: str of the path of the file
+    dates: list of str of the part of time we want to regroup (ex: '2021-01', all of the data in january)
+    newname: name of the file with the data filtred
+    headers: name of the columns of the new file
+    cols: list of the columns' index we want to conserve, all by default
+
+    return the dataframe and save csv
+    """
+    df = pd.read_csv(path, header=0)
+    rows_to_keep = []
+    for date in dates:
+        for i, datehour in enumerate(df['date']):
+            if date in datehour:
+                rows_to_keep.append(i+1)
+    data = pd.read_csv(path, header=None, usecols=cols, skiprows= lambda x: x not in rows_to_keep)
+    data.to_csv(f"{newname}.csv", index=False, header=headers)
+    return data
+
 def find_height(path, height, window=[-3, 3], night=True):
     """find differents periods where the height of a file is between the window entered
     
@@ -666,8 +737,8 @@ def find_weather(path, weather=71, window=[-2, 6], night=True):
     return a dataframe of the periods of time (and weather associate) with the type (start, end) of the date
     """
     data = pd.read_csv(path).sort_values(by='date', ignore_index=True)
-    period = data.loc[data['median_norm 900-1'] >= weather+window[0]]
-    period = period.loc[period['median_norm 900-1'] <= weather+window[1]]
+    period = data.loc[data['median_norm 15=1'] >= weather+window[0]]
+    period = period.loc[period['median_norm 15=1'] <= weather+window[1]]
     if night is False:
         period = period.drop(index=(i for i, date, mea, med in period.itertuples() if date[11:16] > '20:15' or date[11:16] < '06:25'))
     a, c = period.index[0], period.index[0]
@@ -723,71 +794,131 @@ def find_periods(pathhei, pathwea, heightw, weatherw, night=True):
         if starthei == False:
             if (startref <= onlyhei and endref >= onlyhei):
                 x, date = find_closestdate(onlyhei, datesweather, order=0)
-                df.loc[len(df.index)] = [onlyhei, 'only', dfhei['height'][j], dataweather['median_norm 900-1'][x]]
+                df.loc[len(df.index)] = [onlyhei, 'only', dfhei['height'][j], dataweather['median_norm 15=1'][x]]
         elif starthei >= startref and starthei < endref:
             x, date = find_closestdate(starthei, datesweather, order=0)
-            df.loc[len(df.index)] = [starthei, 'start', dfhei['height'][j], dataweather['median_norm 900-1'][x]]
+            df.loc[len(df.index)] = [starthei, 'start', dfhei['height'][j], dataweather['median_norm 15=1'][x]]
         elif starthei <= startref and startref < endhei:
             x, date = find_closestdate(startref, datesheights, order=0)
-            df.loc[len(df.index)] = [startref, 'start', dataheights['height'][x], dfwea['median_norm 900-1'][i]]
+            df.loc[len(df.index)] = [startref, 'start', dataheights['height'][x], dfwea['median_norm 15=1'][i]]
 
         if endhei == False:
             continue
         elif endhei <= endref and endhei > startref:
             x, date = find_closestdate(endhei, datesweather, order=0)
-            df.loc[len(df.index)] = [endhei, 'end', dfhei['height'][j+1], dataweather['median_norm 900-1'][x]]
+            df.loc[len(df.index)] = [endhei, 'end', dfhei['height'][j+1], dataweather['median_norm 15=1'][x]]
         elif endhei >= endref and endref > starthei:
             x, date = find_closestdate(endref, datesheights, order=0)
-            df.loc[len(df.index)] = [endref, 'end', dataheights['height'][x], dfwea['median_norm 900-1'][i+1]]
+            df.loc[len(df.index)] = [endref, 'end', dataheights['height'][x], dfwea['median_norm 15=1'][i+1]]
 
         if starthei == endref:
-            df.loc[len(df.index)] = [starthei, 'only', dfhei['height'][j], dfwea['median_norm 900-1'][i+1]]
+            df.loc[len(df.index)] = [starthei, 'only', dfhei['height'][j], dfwea['median_norm 15=1'][i+1]]
         elif startref == endhei:
-            df.loc[len(df.index)] = [endhei, 'only', dfhei['height'][j+1], dfwea['median_norm 900-1'][i]]
+            df.loc[len(df.index)] = [endhei, 'only', dfhei['height'][j+1], dfwea['median_norm 15=1'][i]]
     return df
 
-def find_closestdate(ref, dates, order=1):
-    """ find the closest date to a reference among a list of dates
+def truncate(path, keepnan = True, specifications=None):
+    """truncate a file according to its columns
 
-    ref: str of the date we want to find the closest (in the format '%Y-%m-%d %H:%M:%S')
-    dates: list of dates (string) not necessarily in order (in the format '%Y-%m-%d %H:%M:%S')
-    order: int equal to -1, 1 or 0 who specify if we want the closest date only after it, before it or it doesn't matter (before by default)
-    
-    return a tuple of the index of the date in the list and the date (in string)
+    path: str of the path of the file
+    keepnan: bool to determine if we want to keep or not the nan values (Yes/True by default)
+    specifications: dict where the keys are the name of the columns of the file and the values are a list of the two bounds (min and max) 
+                    we want to keep (0 to infinity for all the columns by default)
+
+    return the truncated dataframe but do not save it
     """
-    int = False
-    ref = dt.strptime(ref, '%Y-%m-%d %H:%M:%S')
-    diff = 10**20
-    for i, date in enumerate(dates):
-        date = dt.strptime(date, '%Y-%m-%d %H:%M:%S')
-        if order in [1, -1]:
-            delta = (ref - date).total_seconds()*order
-        if order == 0:
-            delta = abs((ref - date).total_seconds())
-        if delta < diff and delta >= 0:
-            diff = delta
-            int, result = i, date
-    if int is False:
-        return (False, False)
-    else:
-        return (int, dt.strftime(result, '%Y-%m-%d %H:%M:%S'))
+    data = pd.read_csv(path)
+    if specifications is None:
+        specifications = {'height':[0, np.infty], 'sun level':[0, np.infty], 'id-day':[0, np.infty], 'id-hour':[0, np.infty], 'weather': [0, np.infty]}
+    for key, window in specifications.items():
+        try:
+            data = data.loc[((data[key] >= window[0]) & (data[key] <= window[1])) | (np.isnan(data[key]) & keepnan)]
+        except:
+            print('there was an error, the dataframe is not truncated')
+            if key == 'weather':
+                raise NotImplementedError
+    return data
 
+# Interpolation/curve fitting functions
+def interpolate(path, pathref, column, newname):
+    """Create a new file with values interpolated (linear) at each seconds
 
-def interpolate(path, newname):
+    path: str of the path of the file
+    paqthref: str of the path of the files of the dates that we want at the end
+    column: str of the name of the column we want to interpolate
+    newname: str of the name of the dataframe returned
+
+    return a dataframe and save a csv
+    """
     data = pd.read_csv(path, parse_dates=['date'])
-    dates, values = data['date'], data['h_dL m']
-    df = pd.DataFrame({'h_dL m': values.to_list()}, index=dates)
+    datetime = pd.read_csv(pathref, parse_dates=['date'])
+    
+    dates, values = data['date'], data[column]
+    df = pd.DataFrame({f'{column}': values.to_list()}, index=dates)
     resampled = df.resample('S')
     interp = resampled.interpolate()
-    interp.to_csv(f'{newname}.csv', index=True)
+    print(interp.loc['2020-12-18 07:00:46':'2020-12-18 09:13:35'])
+    n, i, rowsinter = 0, -1, datetime.shape[0]
+    frame = pd.DataFrame({'date': [], 'height': []})
+    for date in datetime['date'].to_list():
+        i += 1
+        if date in interp.index:
+            # print(date, interp[f'{column}'][date])
+            frame.loc[len(frame.index)] = [date, interp[f'{column}'][date]]
+        if (i+1) >= rowsinter*n/20:
+            print((i+1)/rowsinter*100)
+            n +=1
+        
+    frame.to_csv(f'{newname}.csv', index=False)
     return interp
 
+def height_irr(pathhei, pathirr, newname):
+    datahei = pd.read_csv(pathhei)
+    datairr = pd.read_csv(pathirr)
+    data = pd.DataFrame({'height': datahei['height'].to_list(), 'irr': [np.nan for _ in range(datahei.shape[0])]}, index=datahei['date'])
+    print(data)
+    datesirr = datairr['date'].to_list()
+    n, rows = 0, len(datesirr)
+    for i, date in enumerate(datesirr):
+        # print(date)
+        # print(datairr.loc[datairr['date'] == date, 'irr self-norm i0-norm_denoisedR std-norm'].values)
+        data.loc[date, 'irr'] = datairr.loc[datairr['date'] == date, 'irr self-norm i0-norm_denoisedR std-norm'].values
+        # print(data.loc[date, 'irr'])
+        if (i+1) >= rows*n/20:
+            print((i+1)/rows*100)
+            n +=1
+    data.to_csv(f'{newname}.csv')
+    return data
+
+def curve_fitting(path=None, data=None, offset=[0, 0]):
+    """fit of an exponential function on as certain data
+    
+    path: str of the file (df must be None to use it)
+    data: the dataframe
+    offset: list of the horizontal and vertical offset we need to substract the data
+
+    return a dataframe with predicted irradiance according to regularly incremented heights
+    """
+    if data is None and path is not None:
+        data = pd.read_csv(path)
+    df = pd.DataFrame({'height': data['height']-offset[0], 'irr': data['irr']-offset[1]}).sort_values(by='height')
+    def fitfunction(x, m, b):
+        return m*x+b
+    parameters, covariance = curve_fit(fitfunction, df['height'], np.log(df['irr']))
+    x_pred = pd.DataFrame({'height':list(i for i in np.arange(0, round(max(df['height']))+1, 0.5))})
+    y_pred = np.exp(fitfunction(x_pred, *parameters)).rename(columns={'height':'irr_pred'})
+    r = r2_score(df['irr'], np.exp(fitfunction(df['height'], *parameters)))
+    # r_adj = 1-(1-r)*(n-1)/(n-k-1)
+    print("Curve_fit results: Ae^b: A = {0}, b = {1}\nR^2 = {2}".format(np.exp(parameters[1]), parameters[0], r))
+    return pd.concat([x_pred, y_pred], axis=1)
+
+
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\heightsV.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325_norm1000+heightsV.csv'
 path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
 # newname = 
-headers = ['date', 'precipitation']
-columns = ['precipitation', 'Nothing']
+headers = ['date', 'irr']
+columns = ['irr self-norm', 2]
 dates = [
     '2020-12-25 09:40:55',
     '2020-12-26 07:01:30',
@@ -819,9 +950,11 @@ dates = [
     '2021-04-08 08:28:13'
     ]
 
-print(interpolate(path1, 'all_heightsV-interpolated'))
+data = truncate(path1, specifications={'sun level':[3.5, 5], 'id-hour':[4.5, np.infty], 'height':[32.5, np.infty]})
+print(curve_fitting(data=data, offset=[32.5, 0]))
 
 
-cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
+cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')]
 # for c, i in cols[:3]:
 #     for co, il in cols[3:]:
+#         print(truncate(f'{path2}400F{c}_norm{co}+heightsV.csv'))
