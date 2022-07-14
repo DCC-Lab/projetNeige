@@ -1,20 +1,22 @@
-from operator import index
-from unittest import result
-import pandas as pd
-import os
+import ast
 import glob
+import os
 from datetime import datetime as dt
 from datetime import timedelta as td
+from operator import index
+from unittest import result
+
 import numpy as np
-import ast
-import scipy.signal as ss
+import pandas as pd
 import scipy.interpolate as sint
-from sklearn.metrics import r2_score
+import scipy.signal as ss
 from scipy.optimize import curve_fit
+from scipy.stats import skew
+from sklearn.metrics import r2_score
 
 # Read fonctions
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None):
-    """read an Excel file and transform the useful data in a csv
+    """Read an Excel file and transform the useful data in a csv
     
     path: str of the path of the file
     name: name of the csv file
@@ -35,7 +37,7 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=
 
 # Modify many files
 def joincsvfilescom(path, common, newname):
-    """join csv files with a similar name in alphabetic order
+    """Join csv files with a similar name in alphabetic order
     
     path: str of the common path of the files
     common: str of what is similar in all the files you want to join
@@ -53,7 +55,7 @@ def joincsvfilescom(path, common, newname):
     return dataframe
 
 def joincsvfilesname(path, names, newname):
-    """join csv files entered in alphabetic order
+    """Join csv files entered in alphabetic order
     
     path: str of the common path of the files
     names: list of the names (str) of all the files you want to join
@@ -71,7 +73,7 @@ def joincsvfilesname(path, names, newname):
     return dataframe
 
 def strip_names(path, error='qqq-'):
-    """delete a string of the name of the files of a certain folder
+    """Delete a string of the name of the files of a certain folder
     
     path: str of the common path of the files
     error: str of the charaters we want to delete (will delete only the first encountered)
@@ -89,9 +91,11 @@ def strip_names(path, error='qqq-'):
     return "it's done!"
 
 def renamefiles_asDanwishes(path):
-    """rename all the file of a certain folder with the format "yyyymmdd-*". If a file with its 'new name'
+    """Rename all the file of a certain folder with the format "yyyymmdd-*". If a file with its 'new name'
     got the same name of another file (for example an older version), an exception will stop the programm
-    and you must delete/rename one of the version to continue (no duplicate will be created!)
+    and you must delete/rename one of the version to continue (no duplicate will be created!). However,
+    sometimes one or two empty files are created (one DS-store and the other Apple-...). I think it occurs
+    when the path is in a MAC or some apple product but they are not important so I usually manually delete them.
 
     path: str of the path to the folder
     
@@ -111,7 +115,7 @@ def renamefiles_asDanwishes(path):
 
 # Modify one file/dataframe
 def add_id(path, name_id, id):
-    """add a column of the same id to all the data of the file chosen
+    """Add a column of the same id to all the data of the file chosen
     
     path: str of the path of the file
     name_id: name of the column we add
@@ -126,7 +130,7 @@ def add_id(path, name_id, id):
     return df
 
 def stripcolums(path, columns):
-    """delete columns of the file chosen
+    """Delete columns of the file chosen
     
     path: str of the path of the file
     columns: list of the name of the columns we want to delete
@@ -199,32 +203,32 @@ def add_luminosity(path, pathlum='C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Dat
     return data
 
 def classify_dates(path=None, df=None):
-    """add two columns to a dataframe to add a specific id for each day and another for each half hour independetly of the day
+    """Add two columns to a dataframe to add a specific id for each day and another for each half hour independetly of the day
 
     path: str of the file (df must be None to use it)
     df: the dataframe 
     
-    return the dataframe and updated it
+    return the dataframe and updated it if a path was given
     """
     if df is None and path is not None:
         df = pd.read_csv(path, parse_dates=['date'])
     else:
         df['date'] = pd.to_datetime(df['date'])
-    
-    df["month"], df["day"], df["hour"], df["min"] = df["date"].dt.month, df["date"].dt.day, df["date"].dt.hour, df["date"].dt.minute//30
-    df["month"].loc[df["month"] == 12] = 0
-    df["min"].loc[df["min"] == 1] = 5
+    df["month"], df["day"], df["hour"], df["minu"] = df["date"].dt.month, df["date"].dt.day, df["date"].dt.hour, df["date"].dt.minute//30
+    df.month.where(df.loc[:, "month"] != 12, 0, inplace=True)
+    df.minu.where(df.loc[:, "minu"] != 1, 5, inplace=True)
     df.is_copy = False
-    df['id-day'], df['hour-min'] = (df["month"]+df["day"]/100), (df["hour"]+df["min"]/10)
+    df['id-day'], df['hour-min'] = (df["month"]+df["day"]/100), (df["hour"]+df["minu"]/10)
     df['id-hour'] = -abs(df['hour-min']-13)+7 # formula of the absolute value function where 13h is the horizontal center and the y values are arbitrary units
-    for col in ["month", 'day', 'hour', 'min', 'hour-min']:
+    for col in ["month", 'day', 'hour', 'minu', 'hour-min']:
         df.pop(col)
-    df.to_csv(path, index=False)
+    if path is not None:
+        df.to_csv(path, index=False)
     return df
 
 # Normalization fonctions
 def norm_file(path, column):
-    """normalize irradiance data according to the max value of the data
+    """Normalize irradiance data according to the max value of the data
     
     path: str of the path of the file
     column: str of the column we want to normalize with itself
@@ -242,7 +246,7 @@ def norm_file(path, column):
     return df
 
 def norm_calibrate(path, column, date='2020-12-12 10:25:15'):
-    """normalize irradiance data according to a certain value of the data
+    """Normalize irradiance data according to a certain value of the data
     
     path: str of the path of the file
     column: str of the column we want to normalize with itself
@@ -262,7 +266,7 @@ def norm_calibrate(path, column, date='2020-12-12 10:25:15'):
     return df
 
 def norm_irradiance(path, pathref, columns, newname):
-    """normalize irradiance data according to a certain reference (i0) who have the same timestamp
+    """Normalize irradiance data according to a certain reference (i0) who have the same timestamp
     
     path: str of the path of the file in question
     pathref: str of the path of the file who is the reference
@@ -313,7 +317,7 @@ def norm_irradiance(path, pathref, columns, newname):
     return (len(eff_ref), max(eff_ref), min(eff_ref))
 
 def norm_CRN4(path, pathref, columns, newname, window=5, order=0, how=['mean', 'median']):
-    """normalize irradiance data according to a certain reference (i0) who don't have the same timestamp 
+    """Normalize irradiance data according to a certain reference (i0) who don't have the same timestamp 
     
     path: str of the path of the file in question
     pathref: str of the path of the file who is the reference
@@ -391,7 +395,7 @@ def norm_CRN4(path, pathref, columns, newname, window=5, order=0, how=['mean', '
     return data
 
 def norm_std(path, column, columref):
-    """normalize irradiance data according to the max value of the data of another column
+    """Normalize irradiance data according to the max value of the data of another column
     because the column is too noised
     
     path: str of the path of the file
@@ -421,7 +425,7 @@ def norm_std(path, column, columref):
 
 # Denoise fonctions
 def denoise_but(path, column, filter=0.1):
-    """ denoise by a filter a column of a certain csv file
+    """Denoise by a filter a column of a certain csv file
     
     path: str of the path of the file
     column: str of the name of the column we want to denoise
@@ -449,7 +453,7 @@ def denoise_but(path, column, filter=0.1):
     return data
 
 def denoise_mea(path, column, order=1, window=7):
-    """ denoise by a moving average a column of a certain csv file
+    """Denoise by a moving average a column of a certain csv file
     
     path: str of the path of the file
     column: str of the name of the column we want to denoise
@@ -471,7 +475,7 @@ def denoise_mea(path, column, order=1, window=7):
     return df
 
 def denoise_exp(path, column, order=1, window=7):
-    """ denoise by a moving exponential average a column of a certain csv file
+    """Denoise by a moving exponential average a column of a certain csv file
     
     path: str of the path of the file
     column: str of the name of the column we want to denoise
@@ -493,7 +497,7 @@ def denoise_exp(path, column, order=1, window=7):
     return data
 
 def denoise_med(path, column, order=-1, window=15):
-    """ denoise by a moving median a column of a certain csv file
+    """Denoise by a moving median a column of a certain csv file
     
     path: str of the path of the file
     column: str of the name of the column we want to denoise
@@ -538,7 +542,7 @@ def check_eff(path):
     pass
 
 def same_date(s1, s2, resolution):
-    """find the difference between 2 dates and return True if the difference is less than the resolution, no matter the order the dates are entered (if not retrun False)
+    """Find the difference between 2 dates and return True if the difference is less than the resolution, no matter the order the dates are entered (if not retrun False)
     s1: str of the first date of format '%Y-%m-%d %H:%M:%S'
     s2: str of the second date of format '%Y-%m-%d %H:%M:%S'
     resolution: time interval in seconds where the dates are assumed to be the same 
@@ -553,7 +557,7 @@ def same_date(s1, s2, resolution):
     return False
 
 def find_closestdate(ref, dates, order=1):
-    """ find the closest date to a reference among a list of dates
+    """Find the closest date to a reference among a list of dates
 
     ref: str of the date we want to find the closest (in the format '%Y-%m-%d %H:%M:%S')
     dates: list of dates (string) not necessarily in order (in the format '%Y-%m-%d %H:%M:%S')
@@ -579,7 +583,7 @@ def find_closestdate(ref, dates, order=1):
         return (int, dt.strftime(result, '%Y-%m-%d %H:%M:%S'))
 
 def stats(path, column):
-    """ calculate the mean and the median of each list in a dataframe of lists
+    """Calculate the mean and the median of each list in a dataframe of lists
     
     path: str of the path of the file
     column: str of the name of the column of the lists
@@ -608,7 +612,7 @@ def stats(path, column):
 
 # Correct raw data
 def dates_problem(path, column):
-    """ Find the problematic dates of a csv file. In other words, check if the values of a day start by decreasing.
+    """Find the problematic dates of a csv file. In other words, check if the values of a day start by decreasing.
 
     path: str of the path of the file
     column: str of the name of the column we want to check
@@ -634,7 +638,7 @@ def dates_problem(path, column):
     return dates
 
 def organize_data(path, column, newname, dates):
-    """ Replace the problematic dates entered to the proper day (the day before)
+    """Replace the problematic dates entered to the proper day (the day before)
 
     path: str of the path of the file
     column: str of the name of the column we want to correct
@@ -675,7 +679,7 @@ def organize_data(path, column, newname, dates):
 
 # Identify periods
 def find_dates(path, dates, newname, headers, cols=None):
-    """take only the data from a or many specific date/s
+    """Take only the data from a or many specific date/s
     
     path: str of the path of the file
     dates: list of str of the part of time we want to regroup (ex: '2021-01', all of the data in january)
@@ -696,7 +700,7 @@ def find_dates(path, dates, newname, headers, cols=None):
     return data
 
 def find_height(path, height, window=[-3, 3], night=True):
-    """find differents periods where the height of a file is between the window entered
+    """Find differents periods where the height of a file is between the window entered
     
     path: str of the path of the file
     height: float of the height we want to analyse
@@ -726,7 +730,7 @@ def find_height(path, height, window=[-3, 3], night=True):
     return pd.DataFrame(result.reset_index(drop=True)) #
 
 def find_weather(path, weather=71, window=[-2, 6], night=True):
-    """find significative periods where the weather of a file is between the window entered
+    """Find significative periods where the weather of a file is between the window entered
     
     path: str of the path of the file
     weather: float between 0 and 89 of the value of weather we want to analyze
@@ -760,7 +764,7 @@ def find_weather(path, weather=71, window=[-2, 6], night=True):
     return result.reset_index(drop=True)
 
 def find_periods(pathhei, pathwea, heightw, weatherw, night=True):
-    """find time periods in common where the height and the weather entered are between the windows entered
+    """Find time periods in common where the height and the weather entered are between the windows entered
 
     pathhei: str of the path of the file of the height
     pathwea: str of the path of the file of the weather (reference)
@@ -818,7 +822,7 @@ def find_periods(pathhei, pathwea, heightw, weatherw, night=True):
     return df
 
 def truncate(path, keepnan = True, specifications=None):
-    """truncate a file according to its columns
+    """Truncate a file according to its columns
 
     path: str of the path of the file
     keepnan: bool to determine if we want to keep or not the nan values (Yes/True by default)
@@ -829,7 +833,7 @@ def truncate(path, keepnan = True, specifications=None):
     """
     data = pd.read_csv(path)
     if specifications is None:
-        specifications = {'height':[0, np.infty], 'sun level':[0, np.infty], 'id-day':[0, np.infty], 'id-hour':[0, np.infty], 'weather': [0, np.infty]}
+        specifications = {'height':[32.5, np.infty], 'sun level':[0, np.infty], 'id-day':[0, np.infty], 'id-hour':[0, np.infty]} #, 'weather': [0, np.infty]
     for key, window in specifications.items():
         try:
             data = data.loc[((data[key] >= window[0]) & (data[key] <= window[1])) | (np.isnan(data[key]) & keepnan)]
@@ -873,6 +877,14 @@ def interpolate(path, pathref, column, newname):
     return interp
 
 def height_irr(pathhei, pathirr, newname):
+    """Bind the height the irradiance with the same date
+
+    pathhei: str of the path of the file with a height column
+    pathirr: str of the path of the file with a irradiance (irr) column
+    newname: name of the dataframe created
+
+    return the new dataframe and save it
+    """
     datahei = pd.read_csv(pathhei)
     datairr = pd.read_csv(pathirr)
     data = pd.DataFrame({'height': datahei['height'].to_list(), 'irr': [np.nan for _ in range(datahei.shape[0])]}, index=datahei['date'])
@@ -880,18 +892,15 @@ def height_irr(pathhei, pathirr, newname):
     datesirr = datairr['date'].to_list()
     n, rows = 0, len(datesirr)
     for i, date in enumerate(datesirr):
-        # print(date)
-        # print(datairr.loc[datairr['date'] == date, 'irr self-norm i0-norm_denoisedR std-norm'].values)
         data.loc[date, 'irr'] = datairr.loc[datairr['date'] == date, 'irr self-norm i0-norm_denoisedR std-norm'].values
-        # print(data.loc[date, 'irr'])
         if (i+1) >= rows*n/20:
             print((i+1)/rows*100)
             n +=1
     data.to_csv(f'{newname}.csv')
     return data
 
-def curve_fitting(path=None, data=None, offset=[0, 0]):
-    """fit of an exponential function on as certain data
+def curve_fitting(path=None, df=None, offset=[0, 0]):
+    """Fit of an exponential function on as certain data
     
     path: str of the file (df must be None to use it)
     data: the dataframe
@@ -899,23 +908,52 @@ def curve_fitting(path=None, data=None, offset=[0, 0]):
 
     return a dataframe with predicted irradiance according to regularly incremented heights
     """
-    if data is None and path is not None:
-        data = pd.read_csv(path)
-    df = pd.DataFrame({'height': data['height']-offset[0], 'irr': data['irr']-offset[1]}).sort_values(by='height')
+    if df is None and path is not None:
+        df = pd.read_csv(path)
+    df = pd.DataFrame({'height': df['height']-offset[0], 'irr': df['irr']-offset[1]}).sort_values(by='height')
     def fitfunction(x, m, b):
         return m*x+b
-    parameters, covariance = curve_fit(fitfunction, df['height'], np.log(df['irr']))
+    df['irr'] = np.log(df['irr'])
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    df = df.dropna()
+    parameters, covariance = curve_fit(fitfunction, df['height'], df['irr'])
     x_pred = pd.DataFrame({'height':list(i for i in np.arange(0, round(max(df['height']))+1, 0.5))})
     y_pred = np.exp(fitfunction(x_pred, *parameters)).rename(columns={'height':'irr_pred'})
-    r = r2_score(df['irr'], np.exp(fitfunction(df['height'], *parameters)))
+    r = r2_score(df['irr'], fitfunction(df['height'], *parameters))
     # r_adj = 1-(1-r)*(n-1)/(n-k-1)
     print("Curve_fit results: Ae^b: A = {0}, b = {1}\nR^2 = {2}".format(np.exp(parameters[1]), parameters[0], r))
     return pd.concat([x_pred, y_pred], axis=1)
 
+def check_symmetry(path, id_day=None):
+    """Calculate the mean of sknewness of a the column 'irr' for the specified days
+
+    path: str of the path of the file
+    id_day: list of the day(s) we wan to check the symmetry
+
+    return the mean of sknewness
+    """
+    df = pd.read_csv(path, parse_dates=['date'])
+    df = classify_dates(df=df)
+    if id_day is None:
+        a, all = df['id-day'][0], df['id-day'][1:]
+    elif len(id_day) == 1:
+        return df.loc[df['id-day'] == id_day[0]]['irr'].skew(axis=0, skipna=True)
+    else:
+        a, all = id_day[0], id_day[1:]
+    sum, days = 0, 0
+    for b in all:
+        if a != b:
+            res = df.loc[df['id-day'] == a]['irr'].skew(axis=0, skipna=True)
+            sum, days = res+sum, days+1
+        a = b
+    res = df.loc[df['id-day'] == b]['irr'].skew(axis=0, skipna=True)
+    sum, days = res+sum, days+1
+    return sum/days
+
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325_norm1000+heightsV.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\luminosity.csv'
 # newname = 
 headers = ['date', 'irr']
 columns = ['irr self-norm', 2]
@@ -950,11 +988,11 @@ dates = [
     '2021-04-08 08:28:13'
     ]
 
-data = truncate(path1, specifications={'sun level':[3.5, 5], 'id-hour':[4.5, np.infty], 'height':[32.5, np.infty]})
-print(curve_fitting(data=data, offset=[32.5, 0]))
-
+# data = truncate(path1, specifications={'sun level':[3.5, 5], 'id-hour':[4.5, np.infty], 'height':[32.5, np.infty]})
+print(check_symmetry(f'{path1}325-sunny.csv'))
 
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')]
-# for c, i in cols[:3]:
-#     for co, il in cols[3:]:
-#         print(truncate(f'{path2}400F{c}_norm{co}+heightsV.csv'))
+# for c, i in cols[:]:
+#     # for co, il in cols[3:]:
+#     print(c)
+#     print(check_symetry(f'{path1+c}.csv'))
