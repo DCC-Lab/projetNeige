@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from sklearn.preprocessing import scale
 from manipfiles import truncate, curve_fitting
 
-def graphheight(path, axis, color=None, size=None, realnames=None, title=None, log=False, scale=None):
+def onegraph(path, axis, color=None, size=None, realnames=None, title=None, log=False, scale=[None, None]):
     """make a plotly scatter with a csv file
     
     path: str of the path of the file
@@ -22,9 +22,9 @@ def graphheight(path, axis, color=None, size=None, realnames=None, title=None, l
     return the figure
     """
     data = pd.read_csv(path)
-    data = truncate(path, specifications={'sun level': [3.5, 5], 'id-hour': [4.5, np.infty], 'height': [30, np.infty]})
-    fig = px.scatter(data, x=axis[0], y=axis[1], color=color, size = size, size_max=7, title=title, log_y=log, hover_data=data.columns)
-    fig.update_traces(marker=dict(line=dict(width=0)), selector=dict(mode='markers'))
+    fig = px.scatter(data, x=axis[0], y=axis[1], color=color, size = size, size_max=7, title=title, log_y=log, 
+    hover_data=data.columns, template='simple_white')
+    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
     fig.update_layout(yaxis=dict(range=scale[1]), xaxis=dict(range=scale[0]))
     if realnames:
         for i, dicto in enumerate(fig.data):
@@ -56,14 +56,48 @@ def twograhs(path1, path2, title, yaxis, scale):
     fig.update_xaxes(title_text="date")
     return fig
 
+def graph_exp(path, axis, color=None, size=None, title=None, log=False, scale=[None, None], specifications=None, offset=[0, 0]):
+    """make a plotly scatter with a csv file
+    
+    path: str of the path of the file
+    axis: list of the names of the horizontal and vertical axis
+    color: str of the colum of the file which separates by color the data (None by default)
+    size: str of the colum of the file which separates by size the data (None by default)
+    title: str of the title of the graph (None by default)
+    log: bool to determine if the yaxis is in log or not
+    scale: list of 2 lists representing the range of the horizontal and vertical axis (min and max)
+    specifications: dict where the keys are the name of the columns of the file and the values are a list of the two bounds (min and max) 
+                    we want to keep (0 to infinity for all the columns by default)
+    offset: list of the horizontal and vertical offset we need to substract the data
+    
+    return the figure
+    """
+    df = truncate(path, keepnan=False, specifications=specifications)
+    exp = curve_fitting(df=df, offset=offset)
+    liste, hovertext = [], ""
+    for i, col in enumerate(df.columns):
+        data = df[col].to_list()
+        liste.append(data)
+        hovertext += f"<b>{col}:</b> %{{customdata[{i}]: .2f}} <br>"
+    all_data = np.stack(tuple(liste), axis=-1)
+    fig = make_subplots()
+    fig.add_trace(go.Scatter(x=df[axis[0]]-offset[0], y=df[axis[1]]-offset[1], mode='markers', marker_color=df[color], 
+    marker_size = df[size], name='Data', customdata=all_data, hovertemplate=hovertext, hoverlabel={'namelength': 0}))
+    fig.add_trace(go.Scatter(x=exp['height'], y=exp['irr_pred'], mode='lines', line_color='red', name='Curve-fit'))
+    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    fig.update_layout(title_text=title, yaxis=dict(title='irradiance normalized', range=np.log(scale[1]) if log else scale[1]), 
+    xaxis=dict(title=axis[0], range=scale[0]), yaxis_type=("log" if log else None), template='simple_white')
+    return fig
+
 
 #Write info here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325_norm1000+heightsV.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650-sunny.csv'
 names = {'A': 'Automatic', 'B': 'Benjamin', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent', 'V': 'Valérie'}
 
-axis = ['height', 'irr']
+axis = ['date', 'irr']
 scale=[[None, None], [-0.1, 1.5]]
+# speci={'sun level': [3.5, 5], 'id-hour': [4.5, np.infty], 'height': [32.5, np.infty]}
 
 # show and save figure
 # fig = twograhs(path2, path1, 'corr', yaxis, scale)
@@ -73,6 +107,8 @@ scale=[[None, None], [-0.1, 1.5]]
 # for c, i in cols[:3]:
 #     for co, il in cols[3:]:
 
-fig = graphheight(path1, axis, title=f'400F325_norm1000 irr according to the height', color='id-day', size='id-hour', scale=scale)
+fig = onegraph(path2, axis)
 fig.show()
+# fig = graph_exp(path1, axis, title=f'400F325_norm1000 irr according to the height', color='id-day', size='id-hour', scale=scale, specifications=None, log=True, offset=[32.5, 0])
+# fig.show()
 # fig.write_html(f'all_400F{c}_norm{co}+heightsV.html')
