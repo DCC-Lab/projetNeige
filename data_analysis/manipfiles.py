@@ -12,7 +12,10 @@ import scipy.interpolate as sint
 import scipy.signal as ss
 from scipy.optimize import curve_fit
 from scipy.stats import skew
+from sigfig import round as rd
 from sklearn.metrics import r2_score
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
 # Read fonctions
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None):
@@ -90,7 +93,7 @@ def strip_names(path, error='qqq-'):
             i += 1
     return "it's done!"
 
-def renamefiles_asDanwishes(path):
+def renamefiles_asDanwishes(path=None):
     """Rename all the file of a certain folder with the format "yyyymmdd-*". If a file with its 'new name'
     got the same name of another file (for example an older version), an exception will stop the programm
     and you must delete/rename one of the version to continue (no duplicate will be created!). However,
@@ -101,6 +104,8 @@ def renamefiles_asDanwishes(path):
     
     nothing is return but a confirmation is printed to say that it has been done
     """
+    if path is None:
+        path = 'Z:\\cafeine3.crulrg.ulaval.ca\\Goliath\\labdata\\vdionne\\projetneige' #####################
     names = os.listdir(path)
     # Here I assume that the new files put in the folder were created/updated today, you can change it as you wish
     date = dt.today().strftime("%Y%m%d")
@@ -112,6 +117,36 @@ def renamefiles_asDanwishes(path):
             os.rename(nfc, os.path.join(path, f"{date}-" + name))
     print("It's done!")
     return "Yeah :)"
+
+def renamefiles_offolder(modify, path=None):
+    """Rename files of a certain folder by removing or adding common strings at the same position
+    
+    modify: list of the modifcations we want to do to the name. One modification corresponds to a tuple,
+            the first element is the str we want to add/remove and the second one is a int for the
+            position where the string is add (according to the original name) or '-' to say that the 
+            string is removed. Avoid negative position when the list has many elements.
+    path: str of the path of the folder
+    """
+    if path is None:
+        path = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\Rename_env\\'
+    for oldname in os.listdir(path):
+        historic = {}
+        newname = oldname
+        for tuple in modify:
+            if tuple[1] == '-':
+                historic.update({newname.find(tuple[0]):-len(tuple[0])})
+                newname = newname.replace(tuple[0], "", 1)
+            else:
+                lenght = 0
+                for i, leng in historic.items():
+                    if tuple[1] >= i or (tuple[1] >= i-leng and leng < 0):
+                        lenght += leng
+                    elif (tuple[1] >= i and tuple[1] < i-leng and leng < 0):
+                        lenght -= (0 if tuple[1] == i else tuple[1]-i)
+                newname = newname[:tuple[1]+lenght]+tuple[0]+newname[tuple[1]+lenght:]
+                historic.update({tuple[1]:len(tuple[0])})
+        os.rename(os.path.join(path, oldname), os.path.join(path, newname))
+    return "it's done!"
 
 # Modify one file/dataframe
 def add_id(path, name_id, id):
@@ -129,7 +164,7 @@ def add_id(path, name_id, id):
     df.to_csv(path, index=False)
     return df
 
-def stripcolums(path, columns):
+def stripcolumns(path, columns):
     """Delete columns of the file chosen
     
     path: str of the path of the file
@@ -146,12 +181,12 @@ def stripcolums(path, columns):
     df.to_csv(path, index=False)
     return df
 
-def correct_data(path, column, scale, correction, newname):
-    """Correct specific values of a file by adding a number
+def modify_data(path, column, scale, modification, newname):
+    """Modify specific values of a file by adding a number
 
     path: str of the path of the file
-    column: str of the name of the column we want to correct
-    scale: range of the index where we want to correct the data
+    column: str of the name of the column we want to modify
+    scale: range of the index where we want to modify the data
     correction: float we add to the data selected
     newname: str of the name of the dataframe returned
 
@@ -161,7 +196,7 @@ def correct_data(path, column, scale, correction, newname):
     for i in range(df.shape[0]):
         if i in list(scale):
             print(df.at[i, 'date'])
-            df.at[i, column] += correction
+            df.at[i, column] += modification
     df.to_csv(f'{newname}.csv', index=False)
     return df
 
@@ -298,7 +333,7 @@ def norm_irradiance(path, pathref, columns, newname):
         ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[columns[1]]
     ira = pd.read_csv(path)[columns[0]]
     norm_ira = []
-    eff_ref = []
+    eff = []
     n = 1
     # calculate the normalized irradiance
     for i in range(ira.shape[0]):
@@ -310,11 +345,15 @@ def norm_irradiance(path, pathref, columns, newname):
         else:
             norm_ira.append(ira[i]/ref[i])
             if ira[i]/ref[i] > 2 or ira[i]/ref[i] < -1:
-                eff_ref.append(ira[i]/ref[i])
+                eff.append(ira[i]/ref[i])
     # store the result
     file[f'{columns[0]} i0-norm'] = norm_ira
     file.to_csv(f"{newname}.csv", index=False)
-    return (len(eff_ref), max(eff_ref), min(eff_ref))
+    if len(eff) == 0:
+        a, b, c = len(eff), max(norm_ira), min(norm_ira)
+    else:
+        a, b, c = len(eff), max(eff), min(eff)
+    return (a, b, c)
 
 def norm_CRN4(path, pathref, columns, newname, window=5, order=0, how=['mean', 'median']):
     """Normalize irradiance data according to a certain reference (i0) who don't have the same timestamp 
@@ -409,6 +448,8 @@ def norm_std(path, column, columref):
     ref = df[columref]
     indexref = df.loc[df[columref] == max(ref)].index[0]
     max_ira = ira.loc[indexref]
+    if pd.isna(max_ira):
+        raise ValueError(f"the value at the {indexref}th position of the column '{column}' is nan and therefore cannot be used for the normalization")
     norm_ira = []
     eff = []
     for value in ira:
@@ -610,6 +651,32 @@ def stats(path, column):
     data.to_csv(path, index=None)
     return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
 
+def check_symmetry(path, id_day=None):
+    """Calculate the mean of sknewness of a the column 'irr' for the specified days
+
+    path: str of the path of the file
+    id_day: list of the day(s) we wan to check the symmetry
+
+    return the mean of sknewness
+    """
+    df = pd.read_csv(path, parse_dates=['date'])
+    df = classify_dates(df=df)
+    if id_day is None:
+        a, all = df['id-day'][0], df['id-day'][1:]
+    elif len(id_day) == 1:
+        return df.loc[df['id-day'] == id_day[0]]['irr'].skew(axis=0, skipna=True)
+    else:
+        a, all = id_day[0], id_day[1:]
+    sum, days = 0, 0
+    for b in all:
+        if a != b:
+            res = df.loc[df['id-day'] == a]['irr'].skew(axis=0, skipna=True)
+            sum, days = res+sum, days+1
+        a = b
+    res = df.loc[df['id-day'] == b]['irr'].skew(axis=0, skipna=True)
+    sum, days = res+sum, days+1
+    return sum/days
+
 # Correct raw data
 def dates_problem(path, column):
     """Find the problematic dates of a csv file. In other words, check if the values of a day start by decreasing.
@@ -677,6 +744,40 @@ def organize_data(path, column, newname, dates):
     else:
         raise ValueError("the correction did not work, see the lenght of the variable 'dates'")
 
+def remove_saturation(path, column):
+    """Change to 'nan' values the saturated one (max) of a file
+    
+    path: str of the path of the file
+    column: str of the name of the column we want to correct
+
+    return the dataframe and update it
+    """
+    data = pd.read_csv(path)
+    data[f'{column}_uns'] = data[column]
+    data.loc[round(data[f'{column}_uns'], 2) == round(max(data[f'{column}_uns']), 2), f'{column}_uns'] = np.nan
+    data.to_csv(path, index=False)
+    return data
+
+def round_data(path, column, sigfigs=3):
+    """Round a specific column of a file and save it on another column
+    
+    path: str of the path of the file
+    column: str of the name of the column we want to round
+    sigfigs: int of the number of significant digit we want to keep
+
+    return the dataframe and update it
+    """
+    data = pd.read_csv(path)
+    liste = []
+    for i in data[column]:
+        if pd.isna(i):
+            liste.append(np.nan)
+        else:
+            liste.append(rd(i, sigfigs = sigfigs))
+    data[f'{column}_ro'] = liste #data[column].where(pd.isna(data[column]), (rd(i, sigfigs = sigfigs) for i in data[column]))
+    data.to_csv(path, index=False)
+    return data
+
 # Identify periods
 def find_dates(path, dates, newname, headers, cols=None):
     """Take only the data from a or many specific date/s
@@ -714,6 +815,7 @@ def find_height(path, height, window=[-3, 3], night=True):
     period = period.loc[period['height'] <= height+window[1]]
     if night is False:
         period = period.drop(index=(i for i, date, height, pole, met in period.itertuples() if date[11:16] > '20:15' or date[11:16] < '06:25'))
+    print(period)
     a = period.index[0]
     start, end = [a], []
     for b in period.index[1:]:
@@ -727,7 +829,7 @@ def find_height(path, height, window=[-3, 3], night=True):
     first, second = first.drop(index=only), second.drop(index=only)
     first['type'], second['type'], alone['type'] = ['start' for _ in range(len(start)-len(only))], ['end' for _ in range(len(end)-len(only))], ['only' for _ in range(len(only))]
     result = pd.concat([first, second, alone], axis=0).sort_index()
-    return pd.DataFrame(result.reset_index(drop=True)) #
+    return pd.DataFrame(result.reset_index(drop=True))
 
 def find_weather(path, weather=71, window=[-2, 6], night=True):
     """Find significative periods where the weather of a file is between the window entered
@@ -876,23 +978,23 @@ def interpolate(path, pathref, column, newname):
     frame.to_csv(f'{newname}.csv', index=False)
     return interp
 
-def height_irr(pathhei, pathirr, newname):
+def height_irr(pathhei, pathirr, newname, columnirr):
     """Bind the height the irradiance with the same date
 
     pathhei: str of the path of the file with a height column
     pathirr: str of the path of the file with a irradiance (irr) column
     newname: name of the dataframe created
+    columnirr: name of the irradiance column we want to bind
 
     return the new dataframe and save it
     """
     datahei = pd.read_csv(pathhei)
     datairr = pd.read_csv(pathirr)
     data = pd.DataFrame({'height': datahei['height'].to_list(), 'irr': [np.nan for _ in range(datahei.shape[0])]}, index=datahei['date'])
-    print(data)
     datesirr = datairr['date'].to_list()
     n, rows = 0, len(datesirr)
     for i, date in enumerate(datesirr):
-        data.loc[date, 'irr'] = datairr.loc[datairr['date'] == date, 'irr self-norm i0-norm_denoisedR std-norm'].values
+        data.loc[date, 'irr'] = datairr.loc[datairr['date'] == date, columnirr].values
         if (i+1) >= rows*n/20:
             print((i+1)/rows*100)
             n +=1
@@ -924,36 +1026,10 @@ def curve_fitting(path=None, df=None, offset=[0, 0]):
     print("Curve_fit results: Ae^b: A = {0}, b = {1}\nR^2 = {2}".format(np.exp(parameters[1]), parameters[0], r))
     return pd.concat([x_pred, y_pred], axis=1)
 
-def check_symmetry(path, id_day=None):
-    """Calculate the mean of sknewness of a the column 'irr' for the specified days
-
-    path: str of the path of the file
-    id_day: list of the day(s) we wan to check the symmetry
-
-    return the mean of sknewness
-    """
-    df = pd.read_csv(path, parse_dates=['date'])
-    df = classify_dates(df=df)
-    if id_day is None:
-        a, all = df['id-day'][0], df['id-day'][1:]
-    elif len(id_day) == 1:
-        return df.loc[df['id-day'] == id_day[0]]['irr'].skew(axis=0, skipna=True)
-    else:
-        a, all = id_day[0], id_day[1:]
-    sum, days = 0, 0
-    for b in all:
-        if a != b:
-            res = df.loc[df['id-day'] == a]['irr'].skew(axis=0, skipna=True)
-            sum, days = res+sum, days+1
-        a = b
-    res = df.loc[df['id-day'] == b]['irr'].skew(axis=0, skipna=True)
-    sum, days = res+sum, days+1
-    return sum/days
-
 
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\luminosity.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\DATA-Ordered2.xlsx'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\Rename_env\\'
 # newname = 
 headers = ['date', 'irr']
 columns = ['irr self-norm', 2]
@@ -988,11 +1064,9 @@ dates = [
     '2021-04-08 08:28:13'
     ]
 
-# data = truncate(path1, specifications={'sun level':[3.5, 5], 'id-hour':[4.5, np.infty], 'height':[32.5, np.infty]})
-print(check_symmetry(f'{path1}325-sunny.csv'))
 
-cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')]
-# for c, i in cols[:]:
-#     # for co, il in cols[3:]:
-#     print(c)
-#     print(check_symetry(f'{path1+c}.csv'))
+# print(renamefiles_offolder(path2, [('-7', -4)]))
+# cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] #, ('1500', 'P')
+# for c, i in cols[:3]:
+#     for co, il in cols[3:]:
+#         print(height_irr('all_heightsV-interpolated.csv', f'400F{c}_norm{co}-7.csv', f'400F{c}_norm{co}+heightsV', 'irr_ro_uns self-norm_ro i0-norm_ro_denoisedR std-norm_ro'))
