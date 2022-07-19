@@ -33,7 +33,7 @@ def onegraph(path, axis, color=None, size=None, realnames=None, title=None, log=
                     fig.data[i][elem] = realnames[dicto[elem]]
     return fig
 
-def twograhs(path1, path2, title, yaxis, scale):
+def twograhs(path1, path2, title, yaxis, scale=[None, None]):
     """make a plotly scatter with 2 csv files on the same graph
     
     path1: str of the path of the first file 
@@ -91,24 +91,24 @@ def graph_exp(path, axis, color=None, size=None, title=None, log=False, scale=[N
 
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F325_norm1000+heightsV.csv'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650-sunny.csv'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000+heightsV.csv'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\weather.csv'
 names = {'A': 'Automatic', 'B': 'Benjamin', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent', 'V': 'Valérie'}
 
 axis = ['date', 'irr']
-scale=[[None, None], [-0.1, 1.5]]
-# speci={'sun level': [3.5, 5], 'id-hour': [4.5, np.infty], 'height': [32.5, np.infty]}
+scale=[None, [-0.1, 1.5]]
+speci={'sun level': [3.5, 5], 'id-hour': [4.5, np.infty], 'height': [65, np.infty]}
 
 # show and save figure
-# fig = twograhs(path2, path1, 'corr', yaxis, scale)
+# fig = twograhs(path1, path2, 'meteo', axis)
 # fig.show()
 # fig.write_html(f'all_400F650-corr.html')
-# cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] # 
+cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N'), ('1500', 'P')] # 
 # for c, i in cols[:3]:
 #     for co, il in cols[3:]:
 
-fig = onegraph(path2, axis)
+fig = onegraph(f'400F325.csv', axis, scale=scale)
 fig.show()
-# fig = graph_exp(path1, axis, title=f'400F325_norm1000 irr according to the height', color='id-day', size='id-hour', scale=scale, specifications=None, log=True, offset=[32.5, 0])
+# fig = graph_exp(path1, axis, title='400F650_norm1000 irr according to the height+curvefit', color='id-day', size='id-hour', specifications=speci, log=True, offset=[65, 0], scale=scale)
 # fig.show()
-# fig.write_html(f'all_400F{c}_norm{co}+heightsV.html')
+# fig.write_html('all_400F650_norm1000_irr-height+curvefit.html')
