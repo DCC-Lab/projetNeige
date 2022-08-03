@@ -1,8 +1,10 @@
 import ast
 import glob
 import os
+import warnings
 from datetime import datetime as dt
 from datetime import timedelta as td
+from msilib.schema import Error
 from operator import index
 from unittest import result
 
@@ -14,7 +16,6 @@ from scipy.optimize import curve_fit
 from scipy.stats import skew
 from sigfig import round as rd
 from sklearn.metrics import r2_score
-import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
 # Read fonctions
@@ -105,7 +106,7 @@ def renamefiles_asDanwishes(path=None):
     nothing is return but a confirmation is printed to say that it has been done
     """
     if path is None:
-        path = 'Z:\\cafeine3.crulrg.ulaval.ca\\Goliath\\labdata\\vdionne\\projetneige' #####################
+        path = 'Z:\\Goliath\\labdata\\vdionne\\Neige\\'
     names = os.listdir(path)
     # Here I assume that the new files put in the folder were created/updated today, you can change it as you wish
     date = dt.today().strftime("%Y%m%d")
@@ -122,9 +123,10 @@ def renamefiles_offolder(modify, path=None):
     """Rename files of a certain folder by removing or adding common strings at the same position
     
     modify: list of the modifcations we want to do to the name. One modification corresponds to a tuple,
-            the first element is the str we want to add/remove and the second one is a int for the
+            the first element is the string we want to add/remove and the second one is a int for the
             position where the string is add (according to the original name) or '-' to say that the 
             string is removed. Avoid negative position when the list has many elements.
+            Ex: [('20', '-'), ('-5', 7)] on the filename '420Drtm_1200.csv' will become '4Drtm-5_1200.csv'
     path: str of the path of the folder
     """
     if path is None:
@@ -147,6 +149,29 @@ def renamefiles_offolder(modify, path=None):
                 historic.update({tuple[1]:len(tuple[0])})
         os.rename(os.path.join(path, oldname), os.path.join(path, newname))
     return "it's done!"
+
+def identify_namesfiles(pathfolder, newname):
+    """Convert the name of files that contains a date in the format '%d%b%y' 
+    to a better format ('%Y-%m-%d') and save these dates 
+    
+    pathfolder: str of the path of the folder where the files are
+    newname: str of the name of the dataframe returned
+
+    return the dataframe of the real dates
+    """
+    names = os.listdir(pathfolder)
+    dates = []
+    for name in names:
+        print(name[2:9])
+        try:
+            date = dt.strftime(dt.strptime(name[2:9], '%d%b%y'), '%Y-%m-%d')
+            print(date)
+            dates.append(date)
+        except ValueError as err:
+            dates.append(np.nan)
+    dates = pd.DataFrame(dates)
+    dates.to_csv(f'{newname}.csv', index=False)
+    return dates
 
 # Modify one file/dataframe
 def add_id(path, name_id, id):
@@ -255,7 +280,7 @@ def classify_dates(path=None, df=None):
     df.is_copy = False
     df['id-day'], df['hour-min'] = (df["month"]+df["day"]/100), (df["hour"]+df["minu"]/10)
     df['id-hour'] = -abs(df['hour-min']-13)+7 # formula of the absolute value function where 13h is the horizontal center and the y values are arbitrary units
-    for col in ["month", 'day', 'hour', 'minu', 'hour-min']:
+    for col in ['hour', 'minu']:
         df.pop(col)
     if path is not None:
         df.to_csv(path, index=False)
@@ -314,14 +339,17 @@ def norm_irradiance(path, pathref, columns, newname):
     bigref = pd.read_csv(pathref)
     colref = bigref.columns.values.tolist()
     file = pd.read_csv(path)
+    real_dates, n = [], 1
     dates = file.date.tolist()
-    n = 1
     if colref[columns[1]] != columns[0]:
         raise ValueError('columns are not the same')
     try:
-        ref = bigref.loc[bigref['date'] == dates]
-        ref = ref[colref[columns[1]]]
+        ref = bigref.loc[bigref['date'] == dates, colref[columns[1]]]
+        print(file.shape[0], ref.shape[0])
+        if file.shape[0] != ref.shape[0]:
+            raise Exception
         print(49)
+        real_dates = dates
     except Exception as err:
         rows_to_keep = []
         for i, datehour in enumerate(bigref['date']):
@@ -330,8 +358,11 @@ def norm_irradiance(path, pathref, columns, newname):
                 n +=1
             if datehour in dates:
                 rows_to_keep.append(i+1)
+                real_dates.append(datehour)
         ref = pd.read_csv(pathref, header=None, skiprows= lambda x: x not in rows_to_keep)[columns[1]]
-    ira = pd.read_csv(path)[columns[0]]
+    ira = file.loc[file['date'] == real_dates, columns[0]]
+    if ira.shape[0] != ref.shape[0]:
+        raise ValueError('the two dataframe are not the same size')
     norm_ira = []
     eff = []
     n = 1
@@ -664,16 +695,16 @@ def check_symmetry(path, id_day=None):
     if id_day is None:
         a, all = df['id-day'][0], df['id-day'][1:]
     elif len(id_day) == 1:
-        return df.loc[df['id-day'] == id_day[0]]['irr'].skew(axis=0, skipna=True)
+        return df.loc[df['id-day'] == id_day[0]]['irr_ro_uns'].skew(axis=0, skipna=True)
     else:
         a, all = id_day[0], id_day[1:]
     sum, days = 0, 0
     for b in all:
         if a != b:
-            res = df.loc[df['id-day'] == a]['irr'].skew(axis=0, skipna=True)
+            res = df.loc[df['id-day'] == a]['irr_ro_uns'].skew(axis=0, skipna=True)
             sum, days = res+sum, days+1
         a = b
-    res = df.loc[df['id-day'] == b]['irr'].skew(axis=0, skipna=True)
+    res = df.loc[df['id-day'] == b]['irr_ro_uns'].skew(axis=0, skipna=True)
     sum, days = res+sum, days+1
     return sum/days
 
@@ -935,12 +966,15 @@ def truncate(path, keepnan = True, specifications=None):
     """
     data = pd.read_csv(path)
     if specifications is None:
-        specifications = {'height':[32.5, np.infty], 'sun level':[0, np.infty], 'id-day':[0, np.infty], 'id-hour':[0, np.infty]} #, 'weather': [0, np.infty]
+        specifications = {'height':(0, np.infty), 'sun level':(0, np.infty), 'id-day':(0, np.infty), 'id-hour':(0, np.infty), 'hour-min':(0, np.infty)}
     for key, window in specifications.items():
         try:
-            data = data.loc[((data[key] >= window[0]) & (data[key] <= window[1])) | (np.isnan(data[key]) & keepnan)]
+            if type(window) is tuple:
+                data = data.loc[((data[key] >= window[0]) & (data[key] <= window[1])) | (np.isnan(data[key]) & keepnan)]
+            elif type(window) is list:
+                data = data.loc[(((i in window) or (np.isnan(i) & keepnan)) for i in data[key])]
         except:
-            print('there was an error, the dataframe is not truncated')
+            print(f'there was an error with the column {key}, it is therefore not truncated')
             if key == 'weather':
                 raise NotImplementedError
     return data
@@ -1001,7 +1035,7 @@ def height_irr(pathhei, pathirr, newname, columnirr):
     data.to_csv(f'{newname}.csv')
     return data
 
-def curve_fitting(path=None, df=None, offset=[0, 0]):
+def fit_expo(path=None, df=None, offset=[0, 0]):
     """Fit of an exponential function on as certain data
     
     path: str of the file (df must be None to use it)
@@ -1027,11 +1061,13 @@ def curve_fitting(path=None, df=None, offset=[0, 0]):
     return pd.concat([x_pred, y_pred], axis=1)
 
 
+
+
 #enter your path here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\DATA-Ordered2.xlsx'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\Rename_env\\'
+path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\Irradiance_raw\\700S1500.csv'
 # newname = 
-headers = ['date', 'irr']
+headers = ['date', 'irr', 'sd']
 columns = ['irr self-norm', 2]
 dates = [
     '2020-12-25 09:40:55',
@@ -1063,10 +1099,16 @@ dates = [
     '2021-04-07 08:15:32',
     '2021-04-08 08:28:13'
     ]
+cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200', 'L,M'), ('1375', 'N,O')] #, ('1500', 'P,Q')
 
 
-# print(renamefiles_offolder(path2, [('-7', -4)]))
-# cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N')] #, ('1500', 'P')
-# for c, i in cols[:3]:
-#     for co, il in cols[3:]:
-#         print(height_irr('all_heightsV-interpolated.csv', f'400F{c}_norm{co}-7.csv', f'400F{c}_norm{co}+heightsV', 'irr_ro_uns self-norm_ro i0-norm_ro_denoisedR std-norm_ro'))
+if __name__ == "__main__":
+    pass
+
+    # df = pd.read_csv('luminosity.csv')
+    # dates = df.loc[df['sun level'] == 5, 'date'].to_list()
+    # print(dates)
+    # for x in ('S', 'F'):
+    # for co, il in cols[3:]:
+    #     for c, i in cols[:3]:
+    #         print(classify_dates(f'400F{c}_norm{co}+heightsV-7.csv'))
