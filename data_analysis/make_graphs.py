@@ -1,11 +1,16 @@
-import pandas as pd
+import warnings
+
 import numpy as np
+import pandas as pd
 import plotly
 import plotly.express as px
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from sklearn.preprocessing import scale
-from manipfiles import truncate, curve_fitting
+
+from manipfiles import fit_expo, truncate
+from snow_class import Snow
+warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 def onegraph(path, axis, color=None, size=None, realnames=None, title=None, log=False, scale=[None, None]):
     """make a plotly scatter with a csv file
@@ -16,8 +21,8 @@ def onegraph(path, axis, color=None, size=None, realnames=None, title=None, log=
     size: str of the colum of the file which separates by size the data (None by default)
     realnames: dict of the data in the colum 'color' and the associated labels who will appear in the legend (None by default)
     title: str of the title of the graph (None by default)
-    log: bool to determine if the yaxis is in log or not
-    scale: list of 2 lists representing the range of the horizontal and vertical axis (min and max)
+    log: bool to determine if the yaxis is in log or not (False by default)
+    scale: list of 2 lists representing the range of the horizontal and vertical axis (min and max) ([None, None] by default)
 
     return the figure
     """
@@ -33,39 +38,55 @@ def onegraph(path, axis, color=None, size=None, realnames=None, title=None, log=
                     fig.data[i][elem] = realnames[dicto[elem]]
     return fig
 
-def twograhs(path1, path2, title, yaxis, scale=[None, None]):
+def twograhs(path1, path2, yaxis, xaxis='date', scale=[None, None], color=None, size=None, title=None, log=False, df1=None, df2=None):
     """make a plotly scatter with 2 csv files on the same graph
     
     path1: str of the path of the first file 
     path2: str of the path of the second file
-    title: title ot the graph
     yaxis: list of the names of the data column of each file
-    scale: range of the vertical axis for each file
+    xaxis: str of the horizontal axis (date by default)
+    scale: list of the range of the vertical axis for each file ([None, None] by default)
+    color: str of the colum of the first file which separates by color the data (None by default)
+    size: str of the colum of the first file which separates by size the data (None by default)
+    title: title ot the graph (None by default)
+    log: bool to determine if the yaxis is in log or not (False by default)
+    df1: dataframe of the first file if we don't want to take the whole file (None by default)
+    df2: dataframe of the second file if we don't want to take the whole file (None by default)
 
     return the figure
     """
-    data1 = pd.read_csv(path1)
-    data2 = pd.read_csv(path2)
-    trace1 = go.Scatter(x=data1['date'], y=data1[yaxis[0]], yaxis='y', mode='markers', name=yaxis[0], opacity=0.5)
-    trace2 = go.Scatter(x=data2['date'], y=data2[yaxis[1]], yaxis="y2", mode='markers', name=yaxis[1], opacity=0.5)
+    data1 = pd.read_csv(path1) if df1 is None else df1
+    data2 = pd.read_csv(path2) if df2 is None else df2
+    color = data1[color] if color is not None else None
+    size = data1[size] if size is not None else None
+    liste, hovertext = [], ""
+    for i, col in enumerate(data1.columns):
+        data = data1[col].to_list()
+        liste.append(data)
+        hovertext += f"<b>{col}:</b> %{{customdata[{i}]}} <br>"
+    all_data = np.stack(tuple(liste), axis=-1)
+    trace1 = go.Scatter(x=data1[xaxis], y=data1[yaxis[0]], yaxis='y', mode='markers', name=yaxis[0], opacity=0.7, 
+        marker_color=color, marker_size=size, customdata=all_data, hovertemplate=hovertext)
+    trace2 = go.Scatter(x=data2[xaxis], y=data2[yaxis[1]], yaxis="y2", mode='markers', name=yaxis[1], opacity=0.6)
 
     fig = make_subplots(specs=[[{"secondary_y": True}]], shared_yaxes='all', shared_xaxes='all')
     fig.add_trace(trace1)
     fig.add_trace(trace2, secondary_y=True)
-    fig.update_layout(title_text=title, yaxis1=dict(title=yaxis[0], range=scale[0]), yaxis2=dict(title=yaxis[1], range=scale[1]))
-    fig.update_xaxes(title_text="date")
+    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    fig.update_layout(title_text=title, yaxis1=dict(title=yaxis[0], range=np.log(scale[0]) if log else scale[0], type=("log" if log else None)), yaxis2=dict(title=yaxis[1], range=np.log(scale[1]) if log else scale[1], type=("log" if log else None)), template='simple_white')
+    fig.update_xaxes(title_text=xaxis)
     return fig
 
 def graph_exp(path, axis, color=None, size=None, title=None, log=False, scale=[None, None], specifications=None, offset=[0, 0]):
-    """make a plotly scatter with a csv file
+    """make a plotly scatter and decreasing exponential curve fit with a csv file
     
     path: str of the path of the file
     axis: list of the names of the horizontal and vertical axis
     color: str of the colum of the file which separates by color the data (None by default)
     size: str of the colum of the file which separates by size the data (None by default)
     title: str of the title of the graph (None by default)
-    log: bool to determine if the yaxis is in log or not
-    scale: list of 2 lists representing the range of the horizontal and vertical axis (min and max)
+    log: bool to determine if the yaxis is in log or not (False by default)
+    scale: list of 2 lists representing the range of the horizontal and vertical axis (min and max) ([None, None] by default)
     specifications: dict where the keys are the name of the columns of the file and the values are a list of the two bounds (min and max) 
                     we want to keep (0 to infinity for all the columns by default)
     offset: list of the horizontal and vertical offset we need to substract the data
@@ -73,42 +94,191 @@ def graph_exp(path, axis, color=None, size=None, title=None, log=False, scale=[N
     return the figure
     """
     df = truncate(path, keepnan=False, specifications=specifications)
-    exp = curve_fitting(df=df, offset=offset)
+    exp = fit_expo(df=df, offset=offset)
+    color = df[color] if color is not None else None
+    size = df[size] if size is not None else None
+    # exp.to_csv(f'{title}_curvefit.csv', index=False)
     liste, hovertext = [], ""
     for i, col in enumerate(df.columns):
         data = df[col].to_list()
         liste.append(data)
-        hovertext += f"<b>{col}:</b> %{{customdata[{i}]: .2f}} <br>"
+        hovertext += f"<b>{col}:</b> %{{customdata[{i}]}} <br>"
     all_data = np.stack(tuple(liste), axis=-1)
     fig = make_subplots()
-    fig.add_trace(go.Scatter(x=df[axis[0]]-offset[0], y=df[axis[1]]-offset[1], mode='markers', marker_color=df[color], 
-    marker_size = df[size], name='Data', customdata=all_data, hovertemplate=hovertext, hoverlabel={'namelength': 0}))
+    fig.add_trace(go.Scatter(x=df[axis[0]]-offset[0], y=df[axis[1]]-offset[1], mode='markers', marker_color=color, 
+    marker_size = size, name='Data', customdata=all_data, hovertemplate=hovertext, hoverlabel={'namelength': 0}))
     fig.add_trace(go.Scatter(x=exp['height'], y=exp['irr_pred'], mode='lines', line_color='red', name='Curve-fit'))
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
     fig.update_layout(title_text=title, yaxis=dict(title='irradiance normalized', range=np.log(scale[1]) if log else scale[1]), 
     xaxis=dict(title=axis[0], range=scale[0]), yaxis_type=("log" if log else None), template='simple_white')
     return fig
 
+def sixgraphs(traces, logs=[0, 0, 0, 0, 0, 0], title=None):
+    fig = make_subplots(rows=3, cols=2, specs=[[{"secondary_y": True}, {}], [{}, {}], [{}, {}]], subplot_titles=tuple(str(key) for key in traces.keys()))
+    axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm', '5':'temperature (°C)', '6':'wind speed (m/s)'}
+    titles = {}
+    for i, trace in traces.items():
+        if i % 2 == 0:
+            col=1
+        else:
+            col=2
+        row = int((-col+3+i)/2)
+        for tra in trace:
+            fig.add_trace(tra, row=row, col=col)
+        if logs[i]:
+            fig.update_yaxes(type='log', row=row, col=col)
+        fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], row=row, col=col)
+        fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+        titles[i] = trace[0]['name']
+    fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
+    fig.update_layout(template='simple_white', title=title)
+    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    return fig
+
+def graph_dailydata(days):
+    traces = initialize_classes_dailydata(days)
+    fig = make_subplots(rows=2, cols=2, specs=[[{}, {"secondary_y": True}], [{}, {}]], subplot_titles=tuple(str(key) for key in traces.keys()))
+    axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm', '5':'temperature (°C)', '6':'wind speed (m/s)'}
+    titles = {}
+    for i, trace in traces.items():
+        if i % 2 == 0:
+            col=1
+        else:
+            col=2
+        row = int((-col+3+i)/2)
+        for tra in trace:
+            fig.add_trace(tra, row=row, col=col)
+        fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], row=row, col=col)
+        fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+        titles[i] = trace[0]['name']
+    fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
+    fig.update_layout(template='simple_white', title=f'{days} daily measurements data')
+    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    return fig
+
+def graphs_captors(days):
+    traces = []
+    for h in ['325', '485', '650']:
+        for L in ['F', 'S']:
+            list = initialize_classes_captor(f'400{L+h}', days)
+            if list is False:
+                continue
+            else:
+                traces.append(list)
+    if len(traces) % 2 != 0:
+        raise ValueError('The number of traces is not even')
+    specs = [[{"secondary_y": True}, {"secondary_y": True}] for _ in range(len(traces)//2)]
+    fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
+    axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
+    titles = {}
+    for i, trace in enumerate(traces):
+        if i % 2 == 0:
+            col=1
+        else:
+            col=2
+        row = int((-col+3+i)/2)
+        for tra in trace:
+            fig.add_trace(tra, row=row, col=col)
+        fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], type='log', row=row, col=col)
+        fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+        titles[i] = trace[0]['name']
+    fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
+    fig.update_layout(template='simple_white', title=f'Irradiance normalized according to the snow height over the sensors on {days}')
+    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    return fig
+
+def initialize_classes_dailydata(days):
+    wind = Snow('Wind_speed.csv')
+    wind.find_date(days)
+    trace3 = wind.make_fig('date', 'wind_speed', 'Wind speed', color='wind_angle', axis=['1', '6'], 
+                            colorscale='hsv', cmin=0, cmax=360)
+    height =  Snow('all_heightsV.csv')
+    height.find_date(days)
+    height.datetonum()
+    data = height.df
+    temp = Snow('Temperature.csv')
+    temp.find_date(days)
+    temp.datetonum(min=data['date'].min())
+    trace4 = temp.make_fig('date', 'temperature', 'Temperature', axis=['1', '5'], color='humidity', colorscale='burg')
+    height.poly_fit(temp, y='height')
+    trace2 = height.make_fig('date', 'height', 'Snow height', axis=['1', '2'])
+    trace21 = height.make_fig('date', 'height', 'Snow height fitted', axis=['1', '2'], mode='lines')
+    cnr4 = Snow('ISWR-strip.csv')
+    cnr4.find_date(days)
+    trace1 = cnr4.make_fig('date', 'irr', 'CNR4 irradiance', axis=['1', '3'])
+    return {0:[trace1], 1:[trace2, trace21], 2:[trace3], 3:[trace4]}
+
+def initialize_classes_captor(captor, days):
+    height =  Snow('all_heightsV.csv')
+    height.find_date(days)
+    height.move_data('height', -int(captor[4:])/10)
+    height.datetonum()
+    data = height.df
+    if data['height_moved'].le(3).any():
+        return False
+    classnorm = Snow(f'{captor}_norm1000+heightsV-7.csv')
+    classnorm.find_date(days)
+    classnorm.move_data('height', -int(captor[4:])/10)
+    classnorm.datetonum(min=data['date'].min())
+    height.poly_fit(classnorm)
+    classnorm.modify_column(height)
+    trace0 = classnorm.make_fig('height_moved', 'irr', f'{captor}_norm1000-7', axis=['2', '4'], color='hour-min')
+    param = classnorm.fit_exp()
+    trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'curve_fit m={param[0]:.3g}', axis=['2', '4'], mode='lines')
+    return [trace0, trace01]
 
 #Write info here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000+heightsV.csv'
 path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\weather.csv'
 names = {'A': 'Automatic', 'B': 'Benjamin', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent', 'V': 'Valérie'}
 
-axis = ['date', 'irr']
-scale=[None, [-0.1, 1.5]]
-speci={'sun level': [3.5, 5], 'id-hour': [4.5, np.infty], 'height': [65, np.infty]}
+axis = ['irr', 'irr_pred']
+scale=[[0.01, 1.6], [0.01, 1.6]]
+arr = np.array([[0, 5, 10, 15, 20, 25, 30],
+                [1, 6, 11, 16, 21, 26, 31],
+                [2, 7, 12, 17, 22, 27, 32], 
+                [3, 8, 13, 18, 23, 28, 33], 
+                [4, 9, 14, 19, 24, 29, 34]])
+
+
 
 # show and save figure
-# fig = twograhs(path1, path2, 'meteo', axis)
+
+# fig = twograhs('all_heightsV-interpolated.csv', 'all_heightsV.csv', ['height_moved', 'height_moved'], scale=[[0, 45], [0, 45]], df1=parab, df2=df)
 # fig.show()
 # fig.write_html(f'all_400F650-corr.html')
-cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J'), ('1200', 'L'), ('1375', 'N'), ('1500', 'P')] # 
-# for c, i in cols[:3]:
-#     for co, il in cols[3:]:
+cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J')] # , ('1200', 'L'), ('1375', 'N'), ('1500', 'P')
+# for co, i in cols[3:]:
+#     for i in ['S', 'F']:
+#         for c, il in cols[:3]:
+#             for day in range(5):
+#                 a='' if i == 'F' else 'F'
+#                 speci={'sun level': (0, np.infty), 'id-hour': (0, np.infty), 'height': (float(c)/10, np.infty), 'day':list(arr[day])}
+#                 df1 = truncate(f'400{i}{c}_norm{co}{a}+heightsV-7.csv', keepnan=False, specifications=speci)
+#                 df1['height'] -= float(c)/10
+#                 fig = twograhs('a', f'400{i}{c}_norm{co}{a}+heightsV-7_curvefit.csv', axis, 'height', scale=scale, 
+#                     color='id-day', size='id-hour', title=f'400{i}{c}_norm{co}{a}+heightsV-7/{day}', log=True, df1=df1)
+#                 # fig = graph_exp(f'400{i}{c}_norm{co}{a}+heightsV-7.csv', axis, title=f'400{i}{c}_norm{co}{a}+heightsV-7', color='id-day', size='id-hour', specifications=speci, offset=[float(c)/10, 0], log=True, scale=scale)
+#                 fig.show()
+#                 # fig.write_html(f'all_400S{c}_norm{co}F_irr-height+curvefit.html')
 
-fig = onegraph(f'400F325.csv', axis, scale=scale)
-fig.show()
-# fig = graph_exp(path1, axis, title='400F650_norm1000 irr according to the height+curvefit', color='id-day', size='id-hour', specifications=speci, log=True, offset=[65, 0], scale=scale)
-# fig.show()
-# fig.write_html('all_400F650_norm1000_irr-height+curvefit.html')
+
+days = ['2021-02-15']
+# 
+fig1 = graph_dailydata(days)
+fig1.show()
+fig2 = graphs_captors(days)
+fig2.show()
+if len(days) == 1:
+    d = days[0].replace('2021-', '')
+    name = f'dailydata-{d}.html'
+else:
+    d1 = days[0].replace('2021-', '')
+    d2 = days[-1].replace('2021-', '')
+    name = f'dailydata-{d1}to{d2}.html'
+with open(name, 'a') as f:
+    f.write(fig1.to_html(full_html=False, include_plotlyjs='cdn'))
+    f.write(fig2.to_html(full_html=False, include_plotlyjs='cdn'))
+# fig.write_html(f'{captor}-datadaily_{d}.html')
+
+
