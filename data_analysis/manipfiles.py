@@ -4,22 +4,16 @@ import os
 import warnings
 from datetime import datetime as dt
 from datetime import timedelta as td
-from msilib.schema import Error
-from operator import index
-from unittest import result
-
 import numpy as np
 import pandas as pd
-import scipy.interpolate as sint
 import scipy.signal as ss
 from scipy.optimize import curve_fit
-from scipy.stats import skew
 from sigfig import round as rd
 from sklearn.metrics import r2_score
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
 # Read fonctions
-def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None):
+def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None, keepnan=True):
     """Read an Excel file and transform the useful data in a csv
     
     path: str of the path of the file
@@ -30,12 +24,14 @@ def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=
     rows: int of the number of the rows we want to store (all by default)
     startrow: int/list of the row/s we want to skip (None by default)
     columns: str of the letter of the solums we want to store (all by default) -- EX: 'A,K' (columns A and K) 
-                                                                                     'A-K' (columns A to K)
+                                                                                      'A-K' (columns A to K)
+    keepnan: bool to determine if we want to keep or not the NaN values (Yes/True by default)
 
     return the dataframe and save a csv
     """
     data = pd.read_excel(path, header=header, names=headers, sheet_name=sheet_name, usecols=columns, skiprows = startrow, nrows=rows, na_values='na')
-    # data = data.dropna()
+    if keepnan is False:
+        data = data.dropna()
     data.to_csv(f"{name}.csv", index=False)
     return data
 
@@ -212,7 +208,7 @@ def modify_data(path, column, scale, modification, newname):
     path: str of the path of the file
     column: str of the name of the column we want to modify
     scale: range of the index where we want to modify the data
-    correction: float we add to the data selected
+    modification: float we add to the data selected
     newname: str of the name of the dataframe returned
 
     return a dataframe and save csv
@@ -480,7 +476,7 @@ def norm_std(path, column, columref):
     indexref = df.loc[df[columref] == max(ref)].index[0]
     max_ira = ira.loc[indexref]
     if pd.isna(max_ira):
-        raise ValueError(f"the value at the {indexref}th position of the column '{column}' is nan and therefore cannot be used for the normalization")
+        raise ValueError(f"the value at the {indexref}th position of the column '{column}' is NaN and therefore cannot be used for the normalization")
     norm_ira = []
     eff = []
     for value in ira:
@@ -551,6 +547,7 @@ def denoise_exp(path, column, order=1, window=7):
     
     path: str of the path of the file
     column: str of the name of the column we want to denoise
+    order: 1 or -1, way of the moving average (left to right or the opposite)
     window: int of the number of minutes we use for the mean (7 minutes by default)
 
     return dataframe and update the csv
@@ -654,34 +651,6 @@ def find_closestdate(ref, dates, order=1):
     else:
         return (int, dt.strftime(result, '%Y-%m-%d %H:%M:%S'))
 
-def stats(path, column):
-    """Calculate the mean and the median of each list in a dataframe of lists
-    
-    path: str of the path of the file
-    column: str of the name of the column of the lists
-    """
-    data = pd.read_csv(path, header=0)
-    moy = []
-    med = []
-    eff_refy = []
-    eff_refd = []
-    for i, str in enumerate(data[column]):
-        liste = ast.literal_eval(str)
-        if liste and data['ref'][i] != 0:
-            moy.append(np.mean(liste)/data['ref'][i])
-            med.append(np.median(liste)/data['ref'][i])
-            if np.mean(liste)/data['ref'][i] > 2:
-                eff_refy.append(np.mean(liste)/data['ref'][i])
-            if np.median(liste)/data['ref'][i] > 2:
-                eff_refd.append(np.median(liste)/data['ref'][i])
-        else:
-            moy.append(np.nan)
-            med.append(np.nan)
-    data['mean_norm'] = moy
-    data['median_norm'] = med
-    data.to_csv(path, index=None)
-    return (len(eff_refy)/len(moy)*100, max(eff_refy), len(eff_refd)/len(med)*100, max(eff_refd))
-
 def check_symmetry(path, id_day=None):
     """Calculate the mean of sknewness of a the column 'irr' for the specified days
 
@@ -776,7 +745,7 @@ def organize_data(path, column, newname, dates):
         raise ValueError("the correction did not work, see the lenght of the variable 'dates'")
 
 def remove_saturation(path, column):
-    """Change to 'nan' values the saturated one (max) of a file
+    """Change to 'NaN' values the saturated one (max) of a file
     
     path: str of the path of the file
     column: str of the name of the column we want to correct
@@ -955,12 +924,12 @@ def find_periods(pathhei, pathwea, heightw, weatherw, night=True):
     return df
 
 def truncate(path, keepnan = True, specifications=None):
-    """Truncate a file according to its columns
+    """Truncate a file according to the values of its columns
 
     path: str of the path of the file
-    keepnan: bool to determine if we want to keep or not the nan values (Yes/True by default)
-    specifications: dict where the keys are the name of the columns of the file and the values are a list of the two bounds (min and max) 
-                    we want to keep (0 to infinity for all the columns by default)
+    keepnan: bool to determine if we want to keep or not the NaN values (Yes/True by default)
+    specifications: dict where the keys are the name of the columns of the file and the values are a list or a tuple representing the values
+                    we want to keep. It can be a list of the specific values or a tuple of the bounds (min and max) (0 to infinity for all the columns by default)
 
     return the truncated dataframe but do not save it
     """
@@ -1039,7 +1008,7 @@ def fit_expo(path=None, df=None, offset=[0, 0]):
     """Fit of an exponential function on as certain data
     
     path: str of the file (df must be None to use it)
-    data: the dataframe
+    df: the dataframe (None by default)
     offset: list of the horizontal and vertical offset we need to substract the data
 
     return a dataframe with predicted irradiance according to regularly incremented heights
@@ -1061,12 +1030,8 @@ def fit_expo(path=None, df=None, offset=[0, 0]):
     return pd.concat([x_pred, y_pred], axis=1)
 
 
-
-
-#enter your path here
+#Write info here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-path2 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\Irradiance_raw\\700S1500.csv'
-# newname = 
 headers = ['date', 'irr', 'sd']
 columns = ['irr self-norm', 2]
 dates = [
@@ -1104,7 +1069,6 @@ cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200'
 
 if __name__ == "__main__":
     pass
-
     # df = pd.read_csv('luminosity.csv')
     # dates = df.loc[df['sun level'] == 5, 'date'].to_list()
     # print(dates)
