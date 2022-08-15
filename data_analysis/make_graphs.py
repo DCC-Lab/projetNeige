@@ -1,11 +1,17 @@
+import datetime as dt
+import os
 import warnings
+import webbrowser
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+
 from manipfiles import fit_expo, truncate
 from snow_class import Snow
+
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 def onegraph(path, axis, color=None, size=None, realnames=None, title=None, log=False, scale=[None, None]):
@@ -167,7 +173,7 @@ def graph_dailydata(days):
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
     return fig
 
-def graphs_sensors(days):
+def graphs_sensors_height(days):
     """Make a graph of the irradiance according to the height with all the buried sensors of (a) certain day(s)
     
     days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
@@ -205,6 +211,43 @@ def graphs_sensors(days):
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
     return fig
 
+def graphs_sensors_date(days):
+    """Make a graph of the irradiance according to the date with all the buried sensors of (a) certain day(s)
+
+    days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+        (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+    
+    return the figure
+    """
+    traces = []
+    for h in ['325', '485', '650']:
+        for L in ['F', 'S']:
+            list = initialize_classes_sensor(f'400{L+h}', days, x='date')
+            if list is False:
+                continue
+            else:
+                traces.append(list)
+    if len(traces) % 2 != 0:
+        raise ValueError('The number of traces is not even')
+    specs = [[{"secondary_y": True}, {"secondary_y": True}] for _ in range(len(traces)//2)]
+    fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
+    axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
+    titles = {}
+    for i, trace in enumerate(traces):
+        if i % 2 == 0:
+            col=1
+        else:
+            col=2
+        row = int((-col+3+i)/2)
+        for tra in trace:
+            fig.add_trace(tra, row=row, col=col)
+        fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+        titles[i] = trace[0]['name']
+    fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
+    fig.update_layout(template='simple_white', title=f'Irradiance normalized according to date on {days}')
+    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    return fig
+
 def initialize_classes_dailydata(days):
     """Initialize all the scatter traces needed to make a daily data graph
     
@@ -215,26 +258,26 @@ def initialize_classes_dailydata(days):
             the values are the list of the traces at this position
     """
     wind = Snow('Wind_speed.csv')
-    wind.find_date(days)
+    wind.find_dates(days)
     trace3 = wind.make_fig('date', 'wind_speed', 'Wind speed', color='wind_angle', axis=['1', '6'], 
                             colorscale='hsv', cmin=0, cmax=360)
     height =  Snow('all_heightsV.csv')
-    height.find_date(days)
+    height.find_dates(days)
     height.datetonum()
     data = height.df
     temp = Snow('Temperature.csv')
-    temp.find_date(days)
+    temp.find_dates(days)
     temp.datetonum(min=data['date'].min())
     trace4 = temp.make_fig('date', 'temperature', 'Temperature', axis=['1', '5'], color='humidity', colorscale='burg')
     height.poly_fit(temp, y='height')
     trace2 = height.make_fig('date', 'height', 'Snow height', axis=['1', '2'])
-    trace21 = height.make_fig('date', 'height', 'Snow height fitted', axis=['1', '2'], mode='lines')
+    trace21 = height.make_fig('date', 'height', 'Snow height fitted', axis=['1', '2'], mode='lines', color='green')
     cnr4 = Snow('ISWR-strip.csv')
-    cnr4.find_date(days)
+    cnr4.find_dates(days)
     trace1 = cnr4.make_fig('date', 'irr', 'CNR4 irradiance', axis=['1', '3'])
     return {0:[trace1], 1:[trace2, trace21], 2:[trace3], 3:[trace4]}
 
-def initialize_classes_sensor(sensor, days):
+def initialize_classes_sensor(sensor, days, x='height_moved'):
     """Initialize all the scatter traces needed to make a sensor graph 
     
     sensor: str of the name of the sensor (ex. '400F325')
@@ -244,22 +287,57 @@ def initialize_classes_sensor(sensor, days):
     return a list of the traces
     """
     height =  Snow('all_heightsV.csv')
-    height.find_date(days)
-    height.move_data('height', -int(sensor[4:])/10)
+    height.find_dates(days)
+    height.modify_data('height', -int(sensor[4:])/10)
     height.datetonum()
     data = height.df
     if data['height_moved'].le(3).any():
         return False
-    classnorm = Snow(f'{sensor}_norm1000+heightsV-7.csv')
-    classnorm.find_date(days)
-    classnorm.move_data('height', -int(sensor[4:])/10)
+    classnorm = Snow(f'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\{sensor}_norm1000F+heightsV-7.csv')
+    classnorm.find_dates(days)
+    classnorm.modify_data('height', -int(sensor[4:])/10)
     classnorm.datetonum(min=data['date'].min())
-    height.poly_fit(classnorm)
-    classnorm.modify_column(height)
-    trace0 = classnorm.make_fig('height_moved', 'irr', f'{sensor}_norm1000-7', axis=['2', '4'], color='hour-min')
-    param = classnorm.fit_exp()
-    trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'curve_fit m={param[0]:.3g}', axis=['2', '4'], mode='lines')
-    return [trace0, trace01]
+    classnorm.rectify_data()
+    if x == 'height_moved':
+        height.poly_fit(classnorm)
+        classnorm.switch_columns(height)
+        classnorm.remove_highangles()
+        trace0 = classnorm.make_fig('height_moved', 'irr', f'{sensor}_norm1000F-7', axis=['2', '4'], color='hour-min')
+        param = classnorm.fit_exp()
+        trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'curve_fit m={param[0]:.3g}', axis=['2', '4'], mode='lines', color='red')
+        return [trace0, trace01]
+    elif x == 'date':
+        classnorm.remove_highangles()
+        trace0 = classnorm.make_fig('date', 'irr', f'{sensor}_norm1000F-7', axis=['1', '3'], color='sun level', cmin=0, cmax=5, colorscale='bluered')
+        return [trace0]
+
+def final_graph(days):
+    fig1 = graph_dailydata(days)
+    fig2 = graphs_sensors_height(days)
+    fig3 = graphs_sensors_date(days)
+    l = [dt.datetime.strptime(day, '%Y-%m-%d') for day in days]
+    l = [(day-min(l)).days for day in l]
+    if len(days) == 1:
+        d = days[0].replace('2021-', '')
+        name = f'dailydata-{d}.html'
+    elif sorted(l) == list(range(min(l), max(l)+1)):
+        d1 = days[0].replace('2021-', '')
+        d2 = days[-1].replace('2021-', '')
+        name = f'dailydata-{d1}to{d2}.html'
+    else:
+        d1 = days[0].replace('2021-', '')
+        d2 = days[-1].replace('2021-', '')
+        name = f'dailydata-{d1}and{d2}.html'
+    if os.path.exists(name):
+        os.remove(name)
+    with open(name, 'a') as f:
+        f.write(fig1.to_html(full_html=False, include_plotlyjs='cdn'))
+        f.write(fig2.to_html(full_html=False, include_plotlyjs='cdn'))
+        f.write(fig3.to_html(full_html=False, include_plotlyjs='cdn'))
+    
+    new = 2 # open in a new tab, if possible
+    url = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\' + name
+    webbrowser.open(url,new=new)
 
 #Write info here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000+heightsV.csv'
@@ -274,18 +352,5 @@ arr = np.array([[0, 5, 10, 15, 20, 25, 30],
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J')] # , ('1200', 'L'), ('1375', 'N'), ('1500', 'P')
 
 # show and save figure
-days = ['2021-02-15']
-fig1 = graph_dailydata(days)
-fig1.show()
-fig2 = graphs_sensors(days)
-fig2.show()
-if len(days) == 1:
-    d = days[0].replace('2021-', '')
-    name = f'dailydata-{d}.html'
-else:
-    d1 = days[0].replace('2021-', '')
-    d2 = days[-1].replace('2021-', '')
-    name = f'dailydata-{d1}to{d2}.html'
-with open(name, 'a') as f:
-    f.write(fig1.to_html(full_html=False, include_plotlyjs='cdn'))
-    f.write(fig2.to_html(full_html=False, include_plotlyjs='cdn'))
+days = ['2021-03-08', '2021-03-09']
+print(final_graph(days))

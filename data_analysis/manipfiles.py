@@ -1,15 +1,16 @@
-import ast
 import glob
 import os
 import warnings
 from datetime import datetime as dt
 from datetime import timedelta as td
+
 import numpy as np
 import pandas as pd
 import scipy.signal as ss
 from scipy.optimize import curve_fit
 from sigfig import round as rd
 from sklearn.metrics import r2_score
+
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
 # Read fonctions
@@ -259,7 +260,9 @@ def add_luminosity(path, pathlum='C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Dat
     return data
 
 def classify_dates(path=None, df=None):
-    """Add two columns to a dataframe to add a specific id for each day and another for each half hour independetly of the day
+    """Add two columns to a dataframe to add a specific id for each day and another for each 
+    half hour independetly of the day. Also add a column of the day and another of the hour and 
+    half hour.
 
     path: str of the file (df must be None to use it)
     df: the dataframe 
@@ -396,7 +399,7 @@ def norm_CRN4(path, pathref, columns, newname, window=5, order=0, how=['mean', '
     return dataframe and save csv
     """
     if (how not in ['mean', 'median'] and how != ['mean', 'median']) or (order not in [0, 1]):
-        raise NotImplemented
+        raise NotImplementedError('the method is not implemented')
     reference = pd.read_csv(pathref, header=0)
     study = pd.read_csv(path, header=0)
     j, n = 0, 0
@@ -540,7 +543,7 @@ def denoise_mea(path, column, order=1, window=7):
     w = df.rolling(f'{window}T', on='date').mean()
     data[f"{column}_denoised{dic[order]}"] = w.iloc[:, 1].to_list()[::order]
     data.to_csv(path, index=False)
-    return df
+    return data
 
 def denoise_exp(path, column, order=1, window=7):
     """Denoise by a moving exponential average a column of a certain csv file
@@ -651,7 +654,7 @@ def find_closestdate(ref, dates, order=1):
     else:
         return (int, dt.strftime(result, '%Y-%m-%d %H:%M:%S'))
 
-def check_symmetry(path, id_day=None):
+def check_symmetry(path, ids_day=None):
     """Calculate the mean of sknewness of a the column 'irr' for the specified days
 
     path: str of the path of the file
@@ -661,12 +664,12 @@ def check_symmetry(path, id_day=None):
     """
     df = pd.read_csv(path, parse_dates=['date'])
     df = classify_dates(df=df)
-    if id_day is None:
+    if ids_day is None:
         a, all = df['id-day'][0], df['id-day'][1:]
-    elif len(id_day) == 1:
-        return df.loc[df['id-day'] == id_day[0]]['irr_ro_uns'].skew(axis=0, skipna=True)
+    elif len(ids_day) == 1:
+        return df.loc[df['id-day'] == ids_day[0]]['irr_ro_uns'].skew(axis=0, skipna=True)
     else:
-        a, all = id_day[0], id_day[1:]
+        a, all = ids_day[0], ids_day[1:]
     sum, days = 0, 0
     for b in all:
         if a != b:
@@ -684,7 +687,7 @@ def dates_problem(path, column):
     path: str of the path of the file
     column: str of the name of the column we want to check
 
-    return the list of the dates corresponding to the actual beginning of the day 
+    return the list of the dates corresponding to the actual beginning of the day and save the list in a csv file
     """
     data = pd.read_csv(path)
     df = pd.DataFrame({f'{column}': data[column].to_list()}, index=data['date'].to_list())
@@ -701,21 +704,22 @@ def dates_problem(path, column):
                 dmin = day_am[column].astype(float).idxmin()
                 dates.append(dmin)
         date1 = date2
-    print('\n')
+    pd.DataFrame({'date': dates}).to_csv('datestocorrect.csv')
     return dates
 
-def organize_data(path, column, newname, dates):
+def organize_data(path, column, newname, pathdates):
     """Replace the problematic dates entered to the proper day (the day before)
 
     path: str of the path of the file
     column: str of the name of the column we want to correct
     newname: str of the name of the file modified
-    dates: list of the problematic dates (in str) we need to correct (see the fonction dates_problem)
+    pathdates: str of the path of the file with the list of the dates to correct (see the fonction dates_problem)
 
     return the new dataframe and save it if all the dates were modified only once
     if not raise a ValueError
     """
     data = pd.read_csv(path)
+    dates = pd.read_csv(pathdates)['date'].to_list()
     df = pd.DataFrame({f'{column}': data[column].to_list()}, index=data['date'].to_list())
     date1 = df.index[0]
     n, count, x = 1, 0, len(dates)
@@ -1029,50 +1033,11 @@ def fit_expo(path=None, df=None, offset=[0, 0]):
     print("Curve_fit results: Ae^b: A = {0}, b = {1}\nR^2 = {2}".format(np.exp(parameters[1]), parameters[0], r))
     return pd.concat([x_pred, y_pred], axis=1)
 
-
 #Write info here
 path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
-headers = ['date', 'irr', 'sd']
-columns = ['irr self-norm', 2]
-dates = [
-    '2020-12-25 09:40:55',
-    '2020-12-26 07:01:30',
-    '2021-01-27 07:02:23',
-    '2021-02-24 07:13:18',
-    '2021-03-01 08:07:04',
-    '2021-03-04 07:11:16',
-    '2021-03-11 07:30:11',
-    '2021-03-14 07:55:09',
-    '2021-03-15 08:04:01',
-    '2021-03-16 07:49:33',
-    '2021-03-17 07:46:39',
-    '2021-03-18 07:55:57',
-    '2021-03-19 07:48:06',
-    '2021-03-20 07:58:11',
-    '2021-03-21 07:47:56',
-    '2021-03-22 07:46:51',
-    '2021-03-23 07:44:18',
-    '2021-03-24 07:55:42',
-    '2021-03-27 08:04:56',
-    '2021-03-28 08:46:11',
-    '2021-03-30 08:04:28',
-    '2021-03-31 09:30:57',
-    '2021-04-03 07:46:12',
-    '2021-04-04 07:42:38',
-    '2021-04-05 07:49:42',
-    '2021-04-06 08:36:31',
-    '2021-04-07 08:15:32',
-    '2021-04-08 08:28:13'
-    ]
 cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200', 'L,M'), ('1375', 'N,O')] #, ('1500', 'P,Q')
 
-
 if __name__ == "__main__":
+    print(renamefiles_offolder([('F', 16)]))
+
     pass
-    # df = pd.read_csv('luminosity.csv')
-    # dates = df.loc[df['sun level'] == 5, 'date'].to_list()
-    # print(dates)
-    # for x in ('S', 'F'):
-    # for co, il in cols[3:]:
-    #     for c, i in cols[:3]:
-    #         print(classify_dates(f'400F{c}_norm{co}+heightsV-7.csv'))
