@@ -1,3 +1,4 @@
+import csv
 import datetime as dt
 import os
 import warnings
@@ -8,6 +9,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import scipy.signal as ss
+import varname as vn
+from dcclab.database import *
 from scipy.optimize import curve_fit
 from sigfig import round as rd
 from sklearn.metrics import r2_score
@@ -16,7 +19,7 @@ from fast_projet_neige_sensor_corrector.corrector import corrector, getZenith
 
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
-class Snow:
+class SnowData:
     """Contains various functions to manipulate dataframes who usually have values of type 'datetime'
     
     Attributes:
@@ -26,25 +29,30 @@ class Snow:
         trace (plotly.graph_objects.Scatter): scatter object to graph later on
         date_num (dataframe): dataframe with numerical values and dates. The 'date' column 
                             is the same as the one from df.
-        method (dictionary): methods used according to their category (as keys) and the name of the method (as values)
         datestocorrect (list): list of dates to correct
         df_norm (dataframe): list of dictionaries with the values of the dataframe df normalized and the info
                             about the normalization
     """
 
-    def __init__(self, path, date=True):
-        """Initialize the attributes of the class to None execept for df who comes from the path
+    def __init__(self, path=None, from_database=False, has_dates=True):
+        """Initialize the attributes of the class to None except for df who comes from the path
         
-        path: str of the path of the csv file who contains the dataframe
-        date: bool who convert the values of the 'date' column to datetime objects if True (True by default)
+        path: str of the path of the csv file who contains the dataframe (None by default)
+        from_database: bool to determine if we want to create the dataframe from a database. If False, a path must be provide (False by default)
+        has_dates: bool who convert the values of the 'date' column to datetime objects if True (True by default)
         """
-        if date:
-            self.df = pd.read_csv(path, parse_dates=['date'])
+        if from_database:
+            self.db = SpectraDB()
+            self.df = self.db.get
+            pass
         else:
-            self.df = pd.read_csv(path)
-        self.name = os.path.splitext(os.path.basename(path))[0]
-        self.fit, self.trace, self.date_num, self.method= None, None, None, {}
-        self.dates_tocorrect, self.df_norm  = [], []
+            if has_dates:
+                self.df = pd.read_csv(path, parse_dates=['date'])
+            else:
+                self.df = pd.read_csv(path)
+            self.name = os.path.splitext(os.path.basename(path))[0]
+        self.fit, self.trace, self.date_num= None, None, None
+        self.dates_tocorrect, self.df_norm, self.labbook  = [], [], LabBook(self.name)
     
     def display(self, object='df'):
         """Print all of the dataframe specified
@@ -73,6 +81,7 @@ class Snow:
         
         return the modified df 
         """
+        args = locals()
         self.df['date'] = self.df['date'].astype(str)
         all_df = pd.DataFrame()
         for date in dates:
@@ -81,10 +90,7 @@ class Snow:
         self.df = all_df
         self.df['date'] = self.df['date'].apply(pd.to_datetime)
         self.df.reset_index(inplace = True, drop = True)
-        if 'find_dates' not in self.method:
-            self.method['find_dates'] = [dates]
-        else:
-            self.method['find_dates'].append(dates)
+        self.labbook.add_entry(self.find_dates, args)
         return self.df
 
     def truncate_col(self, column, window, keepnan=True):
@@ -96,16 +102,14 @@ class Snow:
 
         return the modified df
         """
+        args = locals()
         if type(window) is tuple:
             self.df = self.df.loc[((self.df[column] >= window[0]) & (self.df[column] <= window[1])) | (np.isnan(self.df[column]) & keepnan)]
         elif type(window) is list:
             self.df = self.df.loc[(((i in window) or (np.isnan(i) & keepnan)) for i in self.df[column])]
         else:
             raise NotImplementedError(f'the type {type(window)} is not implemented yet')
-        if 'truncate' not in self.method:
-            self.method['truncate'] = [{column: window, 'keepnan': keepnan}]
-        else:
-            self.method['truncate'].append({column: window, 'keepnan': keepnan})
+        self.labbook.add_entry(self.truncate_col, args, 'truncate')
         return self.df
 
     def modify_data(self, column, offset):
@@ -116,11 +120,9 @@ class Snow:
 
         return the modified df
         """
+        args = locals()
         self.df[f'{column}_moved'] = self.df[column] + offset
-        if 'modify_data' not in self.method:
-            self.method['modify_data'] = [{column: offset}]
-        else:
-            self.method['modify_data'].append({column: offset})
+        self.labbook.add_entry(self.modify_data, args)
         return self.df
 
     def datetonum(self, min=None):
@@ -156,14 +158,13 @@ class Snow:
         self.fit.replace([np.inf, -np.inf], np.nan, inplace=True)
         self.fit = self.fit.dropna()
         parameters, covariance = curve_fit(fitfunction, self.fit[x], self.fit[y])
+        r = r2_score(self.fit[y], fitfunction(self.fit[x], *parameters))
+        args = locals()
         x_pred = pd.DataFrame({x:list(i for i in np.arange(0.5*round(min(self.fit[x])/0.5), 0.5*round(max(self.fit[x])/0.5)+0.5, 0.5))})
         y_pred = np.exp(fitfunction(x_pred, *parameters)).rename(columns={x:f'{y}_pred'})
-        r = r2_score(self.fit[y], fitfunction(self.fit[x], *parameters))
         self.fit = pd.concat([x_pred, y_pred], axis=1)
-        if 'fit' not in self.method:
-            self.method['fit'] = [{'type':'decrease exponential', 'x':x, 'y':y, 'formula':f'y={parameters[0]}x+{parameters[1]}', 'r^2':r}]
-        else:
-            self.method['fit'].append({'type':'decrease exponential', 'x':x, 'y':y, 'formula':f'y={parameters[0]}x+{parameters[1]}', 'r^2':r})
+        args['type'] = 'decrease exponential'
+        self.labbook.add_entry(self.fit_exp, args, 'fit')
         return parameters
 
     def poly_fit(self, other, x='date', y='height_moved'):
@@ -172,8 +173,10 @@ class Snow:
         x: indepedent variable ('date' by default)
         y: dependant variable ('height_moved' by default)
 
-        return the 4 parameters of the fit (y=ax^3+bx^2+cx+d)
+        return the attribute fit
         """
+        args = locals()
+        args['type'] = 'polynomial-3'
         if self.date_num is None or self.date_num[x].equals(self.df[x]) is False:
             raise ValueError('self.date_num is not accurate')
         self.df.reset_index(inplace = True, drop = True)
@@ -190,10 +193,8 @@ class Snow:
             df_fit = pd.concat([df_fit, pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})], axis=0)
             days.append(day)
         self.fit = df_fit
-        if 'fit' not in self.method:
-            self.method['fit'] = [{'type':'polynomial-3', 'x':x, 'y':y, 'fomrula':f'y={poly[0]}x^3+{poly[1]}x^2+{poly[2]}x+{poly[3]}'}]
-        else:
-            self.method['fit'].append({'type':'polynomial-3', 'x':x, 'y':y, 'fomrula':f'y={poly[0]}x^3+{poly[1]}x^2+{poly[2]}x+{poly[3]}'})
+        args['parameters'] = poly
+        self.labbook.add_entry(self.poly_fit, args, 'fit')
         return self.fit
 
     def switch_columns(self, other, x='date', y='height_moved'):
@@ -204,13 +205,11 @@ class Snow:
 
         return the modified df
         """
+        args = locals()
         if other.fit[x].equals(self.df[x]) is False:
             raise ValueError(f'the column {x} is not the same between self.df and other.fit')
         self.df[y] = other.fit[y].to_list()
-        if 'switch_columns' not in self.method:
-            self.method['switch_columns'] = [{'x':x, 'y':y}]
-        else:
-            self.method['switch_columns'].append({'x':x, 'y':y})
+        self.labbook.add_entry(self.switch_columns, args)
         return self.df
 
     def save(self, name, object='df'):
@@ -281,6 +280,7 @@ class Snow:
         
         return the corrected dataframe df
         """
+        args = locals()
         c = corrector()
         days, default_diffuse = [], {}
         df_corr = pd.DataFrame()
@@ -298,10 +298,8 @@ class Snow:
             days.append(day)
         self.df[x], self.df[y] = df_corr[x], df_corr[y]
         diffuse = default_diffuse if diffuse is None else diffuse
-        if 'rectify_data' not in self.method:
-            self.method['rectify_data'] = [{'x': x, 'y': y, 'diffuse': diffuse}]
-        else:
-            self.method['rectify_data'].append({'x': x, 'y': y, 'diffuse': diffuse})
+        args['diffuse'] = diffuse
+        self.labbook.add_entry(self.rectify_data, args)
         return self.df
 
     def remove_highangles(self, x='date', max_angle=80):
@@ -312,14 +310,12 @@ class Snow:
         
         return the corrected dataframe df
         """
+        args = locals()
         df = self.df
         for date in df[x].values.astype('datetime64[s]').tolist():
             if getZenith(date) >= max_angle:
                 self.df = self.df.drop(self.df[self.df[x] == date].index)
-        if 'remove_angles' not in self.method:
-            self.method['remove_angles'] = [f'angle({x})>={max_angle}']
-        else:
-            self.method['remove_angles'].append(f'angle({x})>={max_angle}')
+        self.labbook.add_entry(self.remove_highangles, args)
         return self.df
 
     def shift_data(self, column, offset):
@@ -330,15 +326,13 @@ class Snow:
         
         return dataframe and update csv
         """
+        args = locals()
         values = self.df[column].to_list()
         values = values[offset:]
         for _ in range(offset):
             values.append(np.median(values[-3:]))
         self.df[f'{column} shifted'] = values
-        if 'shift_data' not in self.method:
-            self.method['shift_data'] = [{column: offset}]
-        else:
-            self.method['shift_data'].append({column: offset})
+        self.labbook.add_entry(self.shift_data, args)
         return self.df
 
     def classify_dates(self):
@@ -379,10 +373,7 @@ class Snow:
         for col in columns:
             try:
                 self.df.pop(col)
-                if 'stripcolumns' not in self.method:
-                    self.method['stripcolumns'] = [col]
-                else:
-                    self.method['stripcolumns'].append(col)
+                self.labbook.add_entry(self.stripcolumns, {'column': col})
             except KeyError:
                 print(f"{col} not in the dataframe")
                 pass
@@ -413,16 +404,15 @@ class Snow:
 
         return the dataframe df with the new column
         """
+        args = locals()
+        args['type'] = 'max'
         ira = self.df[column]
         max_ira = max(ira)
         norm_ira = []
         for value in ira:
             norm_ira.append(value/max_ira)
         self.df[f'{column} self-norm'] = norm_ira
-        if 'self-norm' not in self.method:
-            self.method['self-norm'] = [{'type': 'max', 'column': column}]
-        else:
-            self.method['self-norm'].append({'type': 'max', 'column': column})
+        self.labbook.add_entry(self.norm_max, args, 'self-norm')
         return self.df
 
     def norm_calibrate(self, column, date='2020-12-12 10:25:15'):
@@ -433,6 +423,8 @@ class Snow:
 
         return the dataframe df with the new column
         """
+        args = locals()
+        args['type'] = 'calibrate'
         ira = self.df[column]
         indexref = self.df.loc[self.df['date'] == date].index[0]
         ref_ira = np.mean(ira.loc[indexref-1:indexref+1])
@@ -440,10 +432,7 @@ class Snow:
         for value in ira:
             norm_ira.append(value/(ref_ira*83))
         self.df[f'{column} self-norm'] = norm_ira
-        if 'self-norm' not in self.method:
-            self.method['self-norm'] = [{'type': 'calibrate', 'column': column, 'date': date}]
-        else:
-            self.method['self-norm'].append({'type': 'calibrate', 'column': column, 'date': date})
+        self.labbook.add_entry(self.norm_calibrate, args, 'self-norm')
         return self.df
 
     def norm_i0(self, other, column):
@@ -454,6 +443,8 @@ class Snow:
         return the efficienty of the normalization (number of values greater than 2 and the maximum value)
         and append the dataframe df normalized with the info of normalization in the attribute df_norm
         """
+        args = locals()
+        args['type'] = 'same_time'
         # find corresponding reference
         real_dates, n = [], 1
         dates = self.df.date.tolist()
@@ -495,10 +486,7 @@ class Snow:
             a, b, c = len(eff), max(norm_ira), min(norm_ira)
         else:
             a, b, c = len(eff), max(eff), min(eff)
-        if 'i0-norm' not in self.method:
-            self.method['i0-norm'] = [{'type': 'same time', 'column': column}]
-        else:
-            self.method['i0-norm'].append({'type': 'same time', 'column': column})
+        self.labbook.add_entry(self.norm_i0, args, 'i0-norm')
         return (a, b, c)
 
     def norm_i0_differenttime(self, other, columns, window=5, order=0, how=['mean', 'median']):
@@ -511,6 +499,8 @@ class Snow:
 
         return the last element of the attribute df_norm
         """
+        args = locals()
+        args['type'] = 'different_time'
         if (how not in ['mean', 'median'] and how != ['mean', 'median']) or (order not in [0, 1]):
             raise NotImplementedError('the method is not implemented')
         j, n = 0, 0
@@ -572,10 +562,7 @@ class Snow:
         data.pop('ref')
         data.pop('list')
         self.df_norm.append({'name_test': self.name, 'name_ref': other.name, 'df': data})
-        if 'i0-norm' not in self.method:
-            self.method['i0-norm'] = [{'type': 'different time', 'column': columns, 'window': f'{window}min', 'order': order, 'how': how}]
-        else:
-            self.method['i0-norm'].append({'type': 'different time', 'column': columns, 'window': f'{window}min', 'order': order, 'how': how})
+        self.labbook.add_entry(self.norm_i0_differenttime, args, 'i0-norm')
         return self.df_norm[-1]
 
     def norm_rescale(self, column, columref):
@@ -587,6 +574,7 @@ class Snow:
 
         return the attribute df_norm
         """
+        args = locals()
         for dic in self.df_norm:
             test, ref = dic['df'][column], dic['df'][columref]
             indexref = dic['df'].loc[ref == max(ref)].index[0]
@@ -603,10 +591,7 @@ class Snow:
                 print(len(eff), max(norm_ira), min(norm_ira))
             else:
                 print(len(eff), max(eff), min(eff))
-        if 'std-norm' not in self.method:
-            self.method['std-norm'] = [{'column': column, 'columnref': columref}]
-        else:
-            self.method['std-norm'].append({'column': column, 'columnref': columref})
+        self.labbook.add_entry(self.norm_rescale, args, 'std-norm')
         return self.df_norm
 
     def denoise_mea(self, column, order=1, window=7, object='df_norm'):
@@ -619,6 +604,8 @@ class Snow:
 
         return the attribute denoised
         """
+        args = locals()
+        args['type'] = 'moving average'
         dico = {1: 'L', -1: 'R'}
         def manip(data):
             y, dates = data[column].to_list(), data['date'].to_list()
@@ -633,10 +620,7 @@ class Snow:
                 dic['df'] = manip(dic['df'])
         else:
             raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
-        if 'denoise' not in self.method:
-            self.method['denoise'] = [{'type': 'mean', 'column': column, 'order': order, 'window': f'{window}min'}]
-        else:
-            self.method['denoise'].append({'type': 'mean', 'column': column, 'order': order, 'window': f'{window}min'})
+        self.labbook.add_entry(self.denoise_mea, args, 'denoise')
 
     def denoise_exp(self, column, order=1, window=7, object='df_norm'):
         """Denoise by a moving exponential average a column of a certain attribute (df or df_norm)
@@ -648,6 +632,8 @@ class Snow:
 
         return the attribute denoised
         """
+        args = locals()
+        args['type'] = 'moving exponential average'
         dico = {1: 'L', -1: 'R'}
         def manip(data):
             y, dates = data[column].to_list(), data['date'].to_list()
@@ -663,10 +649,7 @@ class Snow:
                 dic['df'] = manip(dic['df'])
         else:
             raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
-        if 'denoise' not in self.method:
-            self.method['denoise'] = [{'type': 'exponential mean', 'column': column, 'order': order, 'window': f'{window}min'}]
-        else:
-            self.method['denoise'].append({'type': 'exponential mean', 'column': column, 'order': order, 'window': f'{window}min'})
+        self.labbook.add_entry(self.denoise_exp, args, 'denoise')
 
     def denoise_med(self, column, order=-1, window=15, object='df_norm'):
         """Denoise by a moving median a column of a certain attribute (df or df_norm)
@@ -678,6 +661,8 @@ class Snow:
 
         return the attribute denoised
         """
+        args = locals()
+        args['type'] = 'moving median'
         dico = {1: 'L', -1: 'R'}
         def manip(data):
             data = data.sort_values(by='date', ignore_index=True) # date must be monotonic
@@ -694,10 +679,7 @@ class Snow:
                 dic['df'] = manip(dic['df'])
         else:
             raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
-        if 'denoise' not in self.method:
-            self.method['denoise'] = [{'type': 'median', 'column': column, 'order': order, 'window': f'{window}min'}]
-        else:
-            self.method['denoise'].append({'type': 'median', 'column': column, 'order': order, 'window': f'{window}min'})
+        self.labbook.add_entry(self.denoise_med, args, 'denoise')
 
     def check_symmetry(self, y='irr_ro_uns', days=None):
         """Calculate the mean of sknewness of the column 'irr' of df for the specified days
@@ -757,6 +739,7 @@ class Snow:
         return the new dataframe and save it if all the dates were modified only once
             if not raise a ValueError
         """
+        args = locals()
         df = pd.DataFrame({f'{column}': self.df[column].to_list()}, index=self.df['date'].astype(str).to_list())
         date1 = df.index[0]
         if self.dates_tocorrect == []:
@@ -787,10 +770,8 @@ class Snow:
                 n += 1
         if count != x or count == 0 or x == 0 or len(dates) != 0:
             raise ValueError("the correction did not work, see the lenght of the variable 'dates'")
-        if 'correct_data' not in self.method:
-            self.method['correct_data'] = [{'column': column, 'dates': self.dates_tocorrect}]
-        else:
-            self.method['correct_data'].append({'column': column, 'dates': self.dates_tocorrect})
+        args['dates'] = self.dates_tocorrect
+        self.labbook.add_entry(self.correct_data, args)
         return self.df
 
     def remove_saturation(self, column):
@@ -815,6 +796,7 @@ class Snow:
 
         return the attribute rounded
         """
+        args = locals()
         def manip(data):
             liste = []
             for i in data[column]:
@@ -831,10 +813,148 @@ class Snow:
                 dic['df'] = manip(dic['df'])
         else:
             raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
-        if 'round_data' not in self.method:
-            self.method['round_data'] = [{'column': column, 'sigfigs': sigfigs}]
+        self.labbook.add_entry(self.round_data, args)
+
+
+class LabBook:
+    """Keep track of the different steps of the data analysis
+
+    Attributes:
+        method (dictionary): methods used according to their category (as keys) and the properties of the method (as values)
+        steps (list): list of the different functions used in order
+        name (str): name of the object we manipulate
+        start (datetime): date and time of the begining of the analysis
+    """
+
+    def __init__(self, name):
+        """Initialize the class LabBook by assigning an empty dictionnary to the attribute methods 
+        
+        name: str of the name of the object we manipulate
+        """
+        self.methods, self.steps, self.name, self.start = {}, [], name, None
+    
+    def check_key(self, key):
+        """Check if the key is in the attribute methods
+        
+        key: str of the name of the key we want to check
+
+        return True if the key is in the attribute methods, False otherwise
+        """
+        if key in self.methods:
+            return True
         else:
-            self.method['round_data'].append({'column': column, 'sigfigs': sigfigs})
+            return False
+
+    def add_step(self, function):
+        """Add a method to the attribute steps
+        
+        function: function we want to add to the attribute steps
+
+        return the attribute steps
+        """
+        self.steps.append(function.__name__)
+        return self.steps
+
+    def add_method(self, method, features):
+        """Add a method to the attribute methods
+        
+        method: str of the name of the method we want to add
+        features: dictionary of the properties of the method
+
+        return the attribute methods
+        """
+        if self.check_key(method):
+            self.methods[method].append(features)
+        else:
+            self.methods[method] = [features]
+        return self.methods
+
+    def find_features(self, args):
+        """Find the properties of a method
+        
+        args: dictionary of the arguments of the method
+
+        return the properties of the method
+        """
+        for key in ['self', 'df', 'df_norm', 'fit', 'covariance', 'df_fit', 'other', 'object', 'fitfunction']:
+            try:
+                del args[key]
+            except:
+                pass
+        return args
+
+    def add_entry(self, function, args, str_method=None):
+        """Add a method to the attribute methods
+        
+        function: function we want to add to the attribute steps
+        args: dictionary of the arguments of the method
+        str_method: str of the name of the method we want to add (if None, the name of the function is used)
+
+        return the attribute methods
+        """
+        self.fname = function.__name__
+        self.add_step(function)
+        if str_method is None:
+            str_method = self.fname
+        self.add_method(str_method, self.find_features(args))
+        self.save_labbook()
+        return self.methods
+
+    def save_labbook(self, name=None):
+        """Save the attributes methods and steps in a csv file taking the name and today's date into account
+        ########### Example of how it saves it ##############
+
+        File name: 400F325,
+        Hour of the analysis: 2022-08-18_11:59,
+        Steps of the analysis:,
+        "{0: 'fit_exp', 1: 'norm_calibrate', 2: 'norm_i0', 3: 'norm_max', 4: 'denoise_mea'}",
+        Methods used:,
+        Name,Properties
+        fit,"{'x': 'irr_ro', 'y': 'irr', 'parameters': array([ 4.08045498, -3.11382303]), 'r': 0.5819709350659803, 'type': 'decrease exponential'}"
+        self-norm,"{'column': 'irr_ro_uns', 'date': '2020-12-12 10:25:15', 'type': 'calibrate'}"
+                 ,"{'column': 'irr_ro_uns', 'type': 'max'}"
+        i0-norm,"{'column': 'irr_ro_uns', 'type': 'same_time'}"
+        denoise,"{'column': 'irr_ro_uns', 'order': 1, 'window': 7, 'type': 'moving average'}"
+
+        #####################################################
+        
+        name: str of the name of the csv file we want to create (by default, the name is labbook_{self.name}.csv)
+        """
+        if name is None:
+            name = f'labbook_{self.name}.csv'
+
+        if self.start == None:
+            self.start = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        w = csv.writer(open(name, "w"), lineterminator='\n', delimiter='|')
+        dic_steps = {}
+        for i, val in enumerate(self.steps):
+            dic_steps[i] = val
+        w.writerow([f"File name: {self.name}"])
+        w.writerow([f"Start of the analysis: {self.start}"])
+        w.writerow([f"End of the analysis: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"])
+        w.writerow(['''"""""'''])
+        w.writerow(['Steps of the analysis:'])
+        w.writerow([dic_steps])
+        w.writerow(['''"""""'''])
+        w.writerow(['Methods used:'])
+        w.writerow(['Name: Properties'])
+        w.writerow(['''"""""'''])
+        for key in sorted(self.methods.keys()):
+            val = self.methods[key]
+            w.writerow([f'{key}: {val[0]}'])
+            if len(val) > 1:
+                string = ''.join([' ' for _ in range(len(key))])
+                for i in range(1, len(val)):
+                    w.writerow([f'{string}  {val[i]}'])
+
 
 if __name__ == "__main__":
+    test = SnowData('400F325.csv')
+    yo = SnowData('400F1000.csv')
+    test.fit_exp(x='irr_ro')
+    test.norm_calibrate('irr_ro_uns')
+    test.norm_i0(yo, 'irr_ro_uns')
+    test.norm_max('irr_ro_uns')
+    test.stripcolumns(['irr'])
+    test.denoise_mea('irr_ro_uns')
     pass
