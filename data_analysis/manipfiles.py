@@ -1034,10 +1034,10 @@ def fit_expo(path=None, df=None, offset=[0, 0]):
     return pd.concat([x_pred, y_pred], axis=1)
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\'
+path1 = 'Z:\\Goliath\\labdata\\vdionne\\Neige\\Irradiance'
 cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200', 'L,M'), ('1375', 'N,O')] #, ('1500', 'P,Q')
 
 if __name__ == "__main__":
-    print(renamefiles_offolder([('F', 16)]))
+    print(renamefiles_asDanwishes(path1))
 
     pass

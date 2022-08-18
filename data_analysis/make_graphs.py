@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from manipfiles import fit_expo, truncate
-from snow_class import Snow
+from snow_class import SnowData
 
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
@@ -257,22 +257,22 @@ def initialize_classes_dailydata(days):
     return a dictonary of the traces where the key is the position of the subplot and 
             the values are the list of the traces at this position
     """
-    wind = Snow('Wind_speed.csv')
+    wind = SnowData('Wind_speed.csv')
     wind.find_dates(days)
     trace3 = wind.make_fig('date', 'wind_speed', 'Wind speed', color='wind_angle', axis=['1', '6'], 
                             colorscale='hsv', cmin=0, cmax=360)
-    height =  Snow('all_heightsV.csv')
+    height =  SnowData('all_heightsV.csv')
     height.find_dates(days)
     height.datetonum()
     data = height.df
-    temp = Snow('Temperature.csv')
+    temp = SnowData('Temperature.csv')
     temp.find_dates(days)
     temp.datetonum(min=data['date'].min())
     trace4 = temp.make_fig('date', 'temperature', 'Temperature', axis=['1', '5'], color='humidity', colorscale='burg')
     height.poly_fit(temp, y='height')
     trace2 = height.make_fig('date', 'height', 'Snow height', axis=['1', '2'])
     trace21 = height.make_fig('date', 'height', 'Snow height fitted', axis=['1', '2'], mode='lines', color='green')
-    cnr4 = Snow('ISWR-strip.csv')
+    cnr4 = SnowData('ISWR-strip.csv')
     cnr4.find_dates(days)
     trace1 = cnr4.make_fig('date', 'irr', 'CNR4 irradiance', axis=['1', '3'])
     return {0:[trace1], 1:[trace2, trace21], 2:[trace3], 3:[trace4]}
@@ -286,14 +286,14 @@ def initialize_classes_sensor(sensor, days, x='height_moved'):
 
     return a list of the traces
     """
-    height =  Snow('all_heightsV.csv')
+    height =  SnowData('all_heightsV.csv')
     height.find_dates(days)
     height.modify_data('height', -int(sensor[4:])/10)
     height.datetonum()
     data = height.df
     if data['height_moved'].le(3).any():
         return False
-    classnorm = Snow(f'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\{sensor}_norm1000F+heightsV-7.csv')
+    classnorm = SnowData(f'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\{sensor}_norm1000F+heightsV-7.csv')
     classnorm.find_dates(days)
     classnorm.modify_data('height', -int(sensor[4:])/10)
     classnorm.datetonum(min=data['date'].min())
