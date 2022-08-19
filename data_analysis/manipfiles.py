@@ -1034,7 +1034,7 @@ def fit_expo(path=None, df=None, offset=[0, 0]):
     return pd.concat([x_pred, y_pred], axis=1)
 
 #Write info here
-path1 = 'Z:\\Goliath\\labdata\\vdionne\\Neige\\Irradiance'
+path1 = 'Z:\\Goliath\\labdata\\vdionne\\Neige'
 cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200', 'L,M'), ('1375', 'N,O')] #, ('1500', 'P,Q')
 
 if __name__ == "__main__":

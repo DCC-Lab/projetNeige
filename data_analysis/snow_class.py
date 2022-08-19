@@ -16,6 +16,7 @@ from sigfig import round as rd
 from sklearn.metrics import r2_score
 
 from fast_projet_neige_sensor_corrector.corrector import corrector, getZenith
+from neigedb import NeigeDB
 
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
@@ -34,23 +35,26 @@ class SnowData:
                             about the normalization
     """
 
-    def __init__(self, path=None, from_database=False, has_dates=True):
+    def __init__(self, path=None, from_database=False, has_dates=True, name=None, table=None, columns=None):
         """Initialize the attributes of the class to None except for df who comes from the path
         
         path: str of the path of the csv file who contains the dataframe (None by default)
         from_database: bool to determine if we want to create the dataframe from a database. If False, a path must be provide (False by default)
         has_dates: bool who convert the values of the 'date' column to datetime objects if True (True by default)
+        name: str of the name of the object manipulate (file name by default)
+        table: str of the name of the table we want to use if we want to create the dataframe from a database (None by default)
+        columns: list of str of the columns we want to use if we want to create the dataframe from a database (None by default)
         """
         if from_database:
-            self.db = SpectraDB()
-            self.df = self.db.get
-            pass
+            self.db = NeigeDB()
+            self.df = self.db.getvaluesfromtable(table, columns, has_dates)
+            self.name = name
         else:
             if has_dates:
                 self.df = pd.read_csv(path, parse_dates=['date'])
             else:
                 self.df = pd.read_csv(path)
-            self.name = os.path.splitext(os.path.basename(path))[0]
+            self.name = os.path.splitext(os.path.basename(path))[0] if name is None else name
         self.fit, self.trace, self.date_num= None, None, None
         self.dates_tocorrect, self.df_norm, self.labbook  = [], [], LabBook(self.name)
     
@@ -904,17 +908,22 @@ class LabBook:
         """Save the attributes methods and steps in a csv file taking the name and today's date into account
         ########### Example of how it saves it ##############
 
-        File name: 400F325,
-        Hour of the analysis: 2022-08-18_11:59,
-        Steps of the analysis:,
-        "{0: 'fit_exp', 1: 'norm_calibrate', 2: 'norm_i0', 3: 'norm_max', 4: 'denoise_mea'}",
-        Methods used:,
-        Name,Properties
-        fit,"{'x': 'irr_ro', 'y': 'irr', 'parameters': array([ 4.08045498, -3.11382303]), 'r': 0.5819709350659803, 'type': 'decrease exponential'}"
-        self-norm,"{'column': 'irr_ro_uns', 'date': '2020-12-12 10:25:15', 'type': 'calibrate'}"
-                 ,"{'column': 'irr_ro_uns', 'type': 'max'}"
-        i0-norm,"{'column': 'irr_ro_uns', 'type': 'same_time'}"
-        denoise,"{'column': 'irr_ro_uns', 'order': 1, 'window': 7, 'type': 'moving average'}"
+        File name: 400F325
+        Start of the analysis: 2022-08-18 15:08:16
+        End of the analysis: 2022-08-18 15:08:19
+        """"""""""""
+        Steps of the analysis:
+        {0: 'fit_exp', 1: 'norm_calibrate', 2: 'norm_i0', 3: 'norm_max', 4: 'stripcolumns', 5: 'denoise_mea'}
+        """"""""""""
+        Methods used:
+        Name: Properties
+        """"""""""""
+        denoise: {'column': 'irr_ro_uns', 'order': 1, 'window': 7, 'type': 'moving average'}
+        fit: {'x': 'irr_ro', 'y': 'irr', 'parameters': array([ 4.08045498, -3.11382303]), 'r': 0.5819709350659803, 'type': 'decrease exponential'}
+        i0-norm: {'column': 'irr_ro_uns', 'type': 'same_time'}
+        self-norm: {'column': 'irr_ro_uns', 'date': '2020-12-12 10:25:15', 'type': 'calibrate'}
+                {'column': 'irr_ro_uns', 'type': 'max'}
+        stripcolumns: {'column': 'irr'}
 
         #####################################################
         
