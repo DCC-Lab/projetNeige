@@ -1,3 +1,4 @@
+import ast
 import csv
 import datetime as dt
 import os
@@ -10,13 +11,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import scipy.signal as ss
 import varname as vn
-from dcclab.database import *
+# from dcclab.database import *
 from scipy.optimize import curve_fit
 from sigfig import round as rd
 from sklearn.metrics import r2_score
 
 from fast_projet_neige_sensor_corrector.corrector import corrector, getZenith
-from neigedb import NeigeDB
+from manipfiles import classify_dates
+# from neigedb import NeigeDB
 
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
@@ -28,8 +30,7 @@ class SnowData:
         name (str): the name of the file
         fit (dataframe): dataframe resulting from the fit of df
         trace (plotly.graph_objects.Scatter): scatter object to graph later on
-        date_num (dataframe): dataframe with numerical values and dates. The 'date' column 
-                            is the same as the one from df.
+        date_num (dataframe): dataframe with numerical values and dates. The 'date' column is the same as the one from df.
         datestocorrect (list): list of dates to correct
         df_norm (dataframe): list of dictionaries with the values of the dataframe df normalized and the info
                             about the normalization
@@ -46,9 +47,10 @@ class SnowData:
         columns: list of str of the columns we want to use if we want to create the dataframe from a database (None by default)
         """
         if from_database:
-            self.db = NeigeDB()
-            self.df = self.db.getvaluesfromtable(table, columns, has_dates)
-            self.name = name
+            # self.db = NeigeDB()
+            # self.df = self.db.getvaluesfromtable(table, columns, has_dates)
+            # self.name = name
+            raise NotImplementedError('the method from_database is not implemented yet')
         else:
             if has_dates:
                 self.df = pd.read_csv(path, parse_dates=['date'])
@@ -97,11 +99,11 @@ class SnowData:
         self.labbook.add_entry(self.find_dates, args)
         return self.df
 
-    def truncate_col(self, column, window, keepnan=True):
+    def truncate_col(self, column, window=(0, 9999), keepnan=True):
         """Truncate the attribute df according to the values of a certain column
 
         column: str of the column we want to truncate
-        window: a list of values we want to keep or a tuple of 2 values being the minimum and maximum values limiting the interval of interest
+        window: a list of values we want to keep or a tuple of 2 values being the minimum and maximum values limiting the interval of interest (all values by default)
         keepnan: bool to determine if we want to keep or not the NaN values (Yes/True by default)
 
         return the modified df
@@ -165,17 +167,18 @@ class SnowData:
         r = r2_score(self.fit[y], fitfunction(self.fit[x], *parameters))
         args = locals()
         x_pred = pd.DataFrame({x:list(i for i in np.arange(0.5*round(min(self.fit[x])/0.5), 0.5*round(max(self.fit[x])/0.5)+0.5, 0.5))})
-        y_pred = np.exp(fitfunction(x_pred, *parameters)).rename(columns={x:f'{y}_pred'})
+        y_pred = np.exp(fitfunction(x_pred, *parameters)).rename(columns={x:f'irr_pred'})
         self.fit = pd.concat([x_pred, y_pred], axis=1)
         args['type'] = 'decrease exponential'
         self.labbook.add_entry(self.fit_exp, args, 'fit')
         return parameters
 
-    def poly_fit(self, other, x='date', y='height_moved'):
+    def poly_fit(self, other, x='date', y='height_moved', split_date=True):
         """Fit a 3rd degree polynomial function on the attribute df and save it in the attribute fit
 
         x: indepedent variable ('date' by default)
         y: dependant variable ('height_moved' by default)
+        split_date: bool to determine if we want to split the data according to the date (Yes/True by default)
 
         return the attribute fit
         """
@@ -187,25 +190,32 @@ class SnowData:
         self.fit = pd.DataFrame({x: self.date_num['date_num'], y: self.df[y], 'day': self.date_num['day'], 'hour': self.date_num['hour']}).sort_values(by=x)
         days = []
         df_fit = pd.DataFrame()
-        for day in self.fit['day']:
-            if day in days:
-                continue
-            df = self.fit.loc[(self.fit['day'] == day) & (self.fit['hour'] >= 7) & (self.fit['hour'] <= 20)]
-            dates = other.date_num.loc[other.date_num['day'] == day]
+        if split_date:
+            for day in self.fit['day']:
+                if day in days:
+                    continue
+                df = self.fit.loc[(self.fit['day'] == day) & (self.fit['hour'] >= 7) & (self.fit['hour'] <= 20)]
+                dates = other.date_num.loc[other.date_num['day'] == day]
+                poly = np.polyfit(df[x], df[y], 3)
+                fct = np.poly1d(poly)
+                df_fit = pd.concat([df_fit, pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})], axis=0)
+                days.append(day)
+        else:
+            df = self.fit.loc[(self.fit['hour'] >= 7) & (self.fit['hour'] <= 20)]
+            dates = other.date_num
             poly = np.polyfit(df[x], df[y], 3)
             fct = np.poly1d(poly)
-            df_fit = pd.concat([df_fit, pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})], axis=0)
-            days.append(day)
+            df_fit = pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})
         self.fit = df_fit
         args['parameters'] = poly
         self.labbook.add_entry(self.poly_fit, args, 'fit')
         return self.fit
 
-    def switch_columns(self, other, x='date', y='height_moved'):
-        """Change all the values of a column of the attribute df for those of another attribute df
+    def add_column(self, other, x='date', y='height_moved'):
+        """Add a column to the attribute df with the values of another attribute fit
 
         x: common column between the 2 df ('date' by default)
-        y: column we want to change in the self.df with the values of the same column in other.df
+        y: column we want to add in the self.df with the values of the same column in other.df
 
         return the modified df
         """
@@ -213,15 +223,16 @@ class SnowData:
         if other.fit[x].equals(self.df[x]) is False:
             raise ValueError(f'the column {x} is not the same between self.df and other.fit')
         self.df[y] = other.fit[y].to_list()
-        self.labbook.add_entry(self.switch_columns, args)
+        self.labbook.add_entry(self.add_column, args)
         return self.df
 
-    def save(self, name, object='df'):
+    def save(self, name=None, object='df'):
         """Save the dataframe specified
         
-        name: str of the name of the csv file saved
-        object: str of the name of the dataframe among the 3 possible attributes we want to print ('df' by default)
+        name: str of the name of the csv file saved (name of the original file by default)
+        object: str of the name of the dataframe among the 4 possible attributes we want to print ('df' by default)
         """
+        name = self.name if name is None else name
         if object == 'df':
             self.df.to_csv(f'{name}.csv', index=False)
         elif object == 'fit':
@@ -230,7 +241,7 @@ class SnowData:
             self.date_num.to_csv(f'{name}.csv', index=False)
         elif object == 'df_norm':
             for dic in self.df_norm:
-                dic['df'].to_csv(f'{name}_norm{dic["name_ref"][-4:]}.csv', index=False)
+                dic['df'].to_csv(f'{name}_norm{dic["name_ref"][3:]}.csv', index=False)
         else:
             raise ValueError(f'{object} is not a valid object')
 
@@ -288,6 +299,8 @@ class SnowData:
         c = corrector()
         days, default_diffuse = [], {}
         df_corr = pd.DataFrame()
+        self.df['day'] = [date.date() for date in self.df['date']]
+        self.df['day'] = self.df['day'].astype(str)
         for day in self.df['day']:
             if day in days:
                 continue
@@ -374,13 +387,15 @@ class SnowData:
 
         return the dataframe and update the csv
         """
+        real_cols = []
         for col in columns:
             try:
                 self.df.pop(col)
-                self.labbook.add_entry(self.stripcolumns, {'column': col})
+                real_cols.append(col)
             except KeyError:
                 print(f"{col} not in the dataframe")
                 pass
+        self.labbook.add_entry(self.stripcolumns, {'column': real_cols})
         return self.df
 
     def add_luminosity(self, pathlum='C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\luminosity.csv'):
@@ -391,7 +406,10 @@ class SnowData:
 
         return the dataframe and update it
         """
-        dflum = pd.read_csv(pathlum)
+        dflum, datetime = pd.read_csv(pathlum), False
+        if self.df['date'].dtypes == 'datetime64[ns]':
+            self.df['date'] = self.df['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            datetime = True
         liste, dates = [], dflum['date'].to_list()
         for date in self.df['date']:
             if date[:10] in dates:
@@ -399,6 +417,8 @@ class SnowData:
             else:
                 liste.append(np.nan)
         self.df['sun level'] = liste
+        if datetime:
+            self.df['date'] = pd.to_datetime(self.df['date'])
         return self.df
 
     def norm_max(self, column):
@@ -465,7 +485,7 @@ class SnowData:
                     print((i+1)/other.df.shape[0]*50)
                     n +=1
                 if datehour in dates:
-                    ref = pd.concat([ref, other.df.loc[other.df['date'] == datehour, column[1]]], axis=0)
+                    ref = pd.concat([ref, other.df.loc[other.df['date'] == datehour, column]], axis=0)
                     real_dates.append(datehour)
         ira = self.df.loc[self.df['date'] == real_dates, column]
         if ira.shape[0] != ref.shape[0]:
@@ -490,6 +510,7 @@ class SnowData:
             a, b, c = len(eff), max(norm_ira), min(norm_ira)
         else:
             a, b, c = len(eff), max(eff), min(eff)
+        args['name_ref'] = other.name
         self.labbook.add_entry(self.norm_i0, args, 'i0-norm')
         return (a, b, c)
 
@@ -785,10 +806,12 @@ class SnowData:
 
         return the dataframe df with the new column unsaturated
         """
+        args = locals()
         self.df[f'{column}_uns'] = self.df[column]
         data  = self.df.loc[round(self.df[f'{column}_uns'], 2) == round(max(self.df[f'{column}_uns']), 2), f'{column}_uns']
         if data.shape[0] >= 2:
             self.df.loc[round(self.df[f'{column}_uns'], 2) == round(max(self.df[f'{column}_uns']), 2), f'{column}_uns'] = np.nan
+        self.labbook.add_entry(self.remove_saturation, args)
         return self.df
 
     def round_data(self, column, sigfigs=3, object='df'):
@@ -819,6 +842,25 @@ class SnowData:
             raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
         self.labbook.add_entry(self.round_data, args)
 
+    def combine(self, other, common, col1, col2):
+        """Bind two columns of different dataframes according to a common column
+
+        other: dataframe to combine with
+        common: str of the name of the column to combine on
+        col1: str of the name of the column to combine for the first dataframe (self)
+        col2: str of the name of the column to combine for the second dataframe (other)
+
+        return the new dataframe
+        """
+        combine_df = pd.DataFrame({col2: other.df[col2].to_list(), col1: [np.nan for _ in range(other.df.shape[0])]}, index=other.df[common])
+        datesirr = self.df[common].to_list()
+        n, rows = 0, len(datesirr)
+        for i, date in enumerate(datesirr):
+            combine_df.loc[date, col1] = self.df.loc[self.df[common] == date, col1].values
+            if (i+1) >= rows*n/20:
+                print((i+1)/rows*100)
+                n +=1
+        return combine_df
 
 class LabBook:
     """Keep track of the different steps of the data analysis
@@ -828,6 +870,7 @@ class LabBook:
         steps (list): list of the different functions used in order
         name (str): name of the object we manipulate
         start (datetime): date and time of the begining of the analysis
+        end (datetime): date and time of the end of the analysis
     """
 
     def __init__(self, name):
@@ -835,8 +878,8 @@ class LabBook:
         
         name: str of the name of the object we manipulate
         """
-        self.methods, self.steps, self.name, self.start = {}, [], name, None
-    
+        self.methods, self.steps, self.name, self.start, self.end = {}, [], name, None, None
+
     def check_key(self, key):
         """Check if the key is in the attribute methods
         
@@ -905,7 +948,8 @@ class LabBook:
         return self.methods
 
     def save_labbook(self, name=None):
-        """Save the attributes methods and steps in a csv file taking the name and today's date into account
+        """Save the attributes methods and steps in a csv file taking the name and today's date into account. 
+        The order of the steps is kept but the methods are sorted alphabetically
         ########### Example of how it saves it ##############
 
         File name: 400F325
@@ -916,14 +960,14 @@ class LabBook:
         {0: 'fit_exp', 1: 'norm_calibrate', 2: 'norm_i0', 3: 'norm_max', 4: 'stripcolumns', 5: 'denoise_mea'}
         """"""""""""
         Methods used:
-        Name: Properties
+        Name; Properties
         """"""""""""
-        denoise: {'column': 'irr_ro_uns', 'order': 1, 'window': 7, 'type': 'moving average'}
-        fit: {'x': 'irr_ro', 'y': 'irr', 'parameters': array([ 4.08045498, -3.11382303]), 'r': 0.5819709350659803, 'type': 'decrease exponential'}
-        i0-norm: {'column': 'irr_ro_uns', 'type': 'same_time'}
-        self-norm: {'column': 'irr_ro_uns', 'date': '2020-12-12 10:25:15', 'type': 'calibrate'}
-                {'column': 'irr_ro_uns', 'type': 'max'}
-        stripcolumns: {'column': 'irr'}
+        denoise; {'column': 'irr_ro_uns', 'order': 1, 'window': 7, 'type': 'moving average'}
+        fit; {'x': 'irr_ro', 'y': 'irr', 'parameters': array([ 4.08045498, -3.11382303]), 'r': 0.5819709350659803, 'type': 'decrease exponential'}
+        i0-norm; {'column': 'irr_ro_uns', 'type': 'same_time'}
+        self-norm; {'column': 'irr_ro_uns', 'date': '2020-12-12 10:25:15', 'type': 'calibrate'}
+                   {'column': 'irr_ro_uns', 'type': 'max'}
+        stripcolumns; {'column': 'irr'}
 
         #####################################################
         
@@ -940,30 +984,71 @@ class LabBook:
             dic_steps[i] = val
         w.writerow([f"File name: {self.name}"])
         w.writerow([f"Start of the analysis: {self.start}"])
-        w.writerow([f"End of the analysis: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"])
+        w.writerow([f"End of the analysis: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S') if self.end is None else self.end}"])
         w.writerow(['''"""""'''])
         w.writerow(['Steps of the analysis:'])
         w.writerow([dic_steps])
         w.writerow(['''"""""'''])
         w.writerow(['Methods used:'])
-        w.writerow(['Name: Properties'])
+        w.writerow(['Name; Properties'])
         w.writerow(['''"""""'''])
         for key in sorted(self.methods.keys()):
             val = self.methods[key]
-            w.writerow([f'{key}: {val[0]}'])
+            w.writerow([f'{key}; {val[0]}'])
             if len(val) > 1:
                 string = ''.join([' ' for _ in range(len(key))])
                 for i in range(1, len(val)):
                     w.writerow([f'{string}  {val[i]}'])
 
+    def rename_labbook(self, name):
+        """Rename the csv file of the labbook
+        
+        name: str of the new name of the csv file
+        """
+        os.rename(f'labbook_{self.name}.csv', f'labbook_{name}.csv')
+        self.name = name
+
+    def join_labbook(self, other):
+        """Join the attributes methods and steps of two LabBook objects
+        
+        other: LabBook object we want to join subsequent to self (the order of the steps is kept but the start/end is the earliest/latest)
+        """
+        for method, list_features in other.methods.items():
+            for features in list_features:
+                self.add_method(method, features)
+        for step in other.steps:
+            self.steps.append(step)
+        self.end = other.end if other.end > self.end else self.end
+        self.start = self.start if self.start < other.start else other.start
+        self.save_labbook()
+        os.remove(f'labbook_{other.name}.csv')
+
+    def read_labbook(self, name=None):
+        """Read the csv file of the labbook and collect the relevant information in order to associate it to the attributes of the class
+        
+        name: str of the name of the csv file we want to read (by default, the name is "labbook_{self.name}.csv")
+        """
+        name = f'labbook_{self.name}.csv' if name is None else name
+        self.methods = {}
+        with open(name, 'r') as file:
+            reader = csv.reader(file, lineterminator='\n', delimiter='|')
+            for i, row in enumerate(reader):
+                if i == 0:
+                    self.name = row[0].replace("'", '').split(': ')[1]
+                elif i == 1:
+                    self.start = row[0].replace("'", '').split(': ')[1]
+                elif i == 2:
+                    self.end = row[0].replace("'", '').split(': ')[1]
+                elif i == 5:
+                    dic_steps = ast.literal_eval(row[0].replace('"', ''))
+                    self.steps = list(dic_steps.values())
+                elif i >= 10:
+                    list_meths = row[0].split('; ')
+                    features = ast.literal_eval(list_meths[1])
+                    if ' ' not in list_meths[0]:
+                        method = list_meths[0]
+                    self.add_method(method, features)
 
 if __name__ == "__main__":
-    test = SnowData('400F325.csv')
-    yo = SnowData('400F1000.csv')
-    test.fit_exp(x='irr_ro')
-    test.norm_calibrate('irr_ro_uns')
-    test.norm_i0(yo, 'irr_ro_uns')
-    test.norm_max('irr_ro_uns')
-    test.stripcolumns(['irr'])
-    test.denoise_mea('irr_ro_uns')
+    
     pass
