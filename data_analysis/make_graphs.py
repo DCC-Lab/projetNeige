@@ -145,6 +145,30 @@ def sixgraphs(traces, logs=[1, 0, 0, 0, 0, 0], title=None):
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
     return fig
 
+def get_night_datetime(days):
+    """Get the datetime of the night of the day
+    
+    days: list of the days we want to get the night datetime
+    
+    return a list of the night datetime
+    """
+    try:
+        yesterday =  (dt.datetime.strptime(days[0], '%Y-%m-%d')-dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+        night_hours = [(f'{yesterday[:10]} 20:00:00', f'{days[0][:10]} 07:00:00')]
+    except:
+        night_hours = [(f'{days[0][:10]} 00:00:00', f'{days[0][:10]} 07:00:00')]
+    yesterday = days[0]
+    if len(days) > 1:
+        for today in days[1:]:
+            night_hours.append((f'{yesterday[:10]} 20:00:00', f'{today[:10]} 07:00:00'))
+            yesterday = today
+    try:
+        tomorrow = (dt.datetime.strptime(days[-1], '%Y-%m-%d')+dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+        night_hours.append((f'{today[:10]} 20:00:00', f'{tomorrow[:10]} 07:00:00'))
+    except:
+        night_hours.append((f'{today[:10]} 20:00:00', f'{today[:10]} 23:59:59'))
+    return night_hours
+
 def graph_dailydata(days):
     """Make a graph of all the relevant features of (a) certain day(s)
     
@@ -171,6 +195,9 @@ def graph_dailydata(days):
     fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
     fig.update_layout(template='simple_white', title=f'{days} daily measurements data')
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    for x0, x1 in get_night_datetime(days):
+        fig.add_vrect(x0=x0, x1=x1, row="all", col="all", 
+            annotation_text="night", annotation_position="top left", fillcolor='rgb(217, 217, 217)', opacity=1, line_width=0)
     return fig
 
 def graphs_sensors_height(days):
@@ -246,6 +273,9 @@ def graphs_sensors_date(days):
     fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
     fig.update_layout(template='simple_white', title=f'Irradiance normalized according to date on {days}')
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+    for x0, x1 in get_night_datetime(days):
+        fig.add_vrect(x0=x0, x1=x1, row="all", col="all", 
+            annotation_text="night", annotation_position="top left", fillcolor='rgb(217, 217, 217)', opacity=1, line_width=0)
     return fig
 
 def initialize_classes_dailydata(days):
@@ -269,7 +299,7 @@ def initialize_classes_dailydata(days):
     temp.find_dates(days)
     temp.datetonum(min=data['date'].min())
     trace4 = temp.make_fig('date', 'temperature', 'Temperature', axis=['1', '5'], color='humidity', colorscale='burg')
-    height.poly_fit(temp, y='height')
+    height.poly_fit(temp, y='height', split_date=False)
     trace2 = height.make_fig('date', 'height', 'Snow height', axis=['1', '2'])
     trace21 = height.make_fig('date', 'height', 'Snow height fitted', axis=['1', '2'], mode='lines', color='green')
     cnr4 = SnowData('ISWR-strip.csv')
@@ -283,6 +313,7 @@ def initialize_classes_sensor(sensor, days, x='height_moved'):
     sensor: str of the name of the sensor (ex. '400F325')
     days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
         (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+    x: str of the name of the column we want to use as x axis (default: 'height_moved')
 
     return a list of the traces
     """
@@ -293,41 +324,50 @@ def initialize_classes_sensor(sensor, days, x='height_moved'):
     data = height.df
     if data['height_moved'].le(3).any():
         return False
-    classnorm = SnowData(f'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\{sensor}_norm1000F+heightsV-7.csv')
+    classnorm = SnowData(f'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\{sensor}_normF1000_rec.csv')
     classnorm.find_dates(days)
-    classnorm.modify_data('height', -int(sensor[4:])/10)
     classnorm.datetonum(min=data['date'].min())
-    classnorm.rectify_data()
     if x == 'height_moved':
-        height.poly_fit(classnorm)
-        classnorm.switch_columns(height)
+        height.poly_fit(classnorm, split_date=False)
+        classnorm.add_column(height)
         classnorm.remove_highangles()
-        trace0 = classnorm.make_fig('height_moved', 'irr', f'{sensor}_norm1000F-7', axis=['2', '4'], color='hour-min')
-        param = classnorm.fit_exp()
+        trace0 = classnorm.make_fig('height_moved', 'irr_ro_uns i0-norm_ro_denoisedR', f'{sensor}_normF1000_rec', axis=['2', '4'], color='hour-min')
+        param = classnorm.fit_exp(y='irr_ro_uns i0-norm_ro_denoisedR')
         trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'curve_fit m={param[0]:.3g}', axis=['2', '4'], mode='lines', color='red')
         return [trace0, trace01]
     elif x == 'date':
         classnorm.remove_highangles()
-        trace0 = classnorm.make_fig('date', 'irr', f'{sensor}_norm1000F-7', axis=['1', '3'], color='sun level', cmin=0, cmax=5, colorscale='bluered')
-        return [trace0]
+        trace0 = classnorm.make_fig('date', 'irr', f'{sensor}', axis=['1', '3'])
+        trace01 = classnorm.make_fig('date', 'irr_ro_uns i0-norm_ro_denoisedR', f'{sensor}_normF1000_rec', axis=['1', '3'], color='hour-min')
+        return [trace0, trace01]
 
-def final_graph(days):
+def final_graph(days, name=None):
+    """Make the final graph with all the traces
+    
+    days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+        (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+    name: str of the name of the file we want to save the graph (dailydata-"days".html by default)
+    
+    save all the traces in a graph and open it"""
+
     fig1 = graph_dailydata(days)
     fig2 = graphs_sensors_height(days)
     fig3 = graphs_sensors_date(days)
     l = [dt.datetime.strptime(day, '%Y-%m-%d') for day in days]
     l = [(day-min(l)).days for day in l]
-    if len(days) == 1:
-        d = days[0].replace('2021-', '')
-        name = f'dailydata-{d}.html'
-    elif sorted(l) == list(range(min(l), max(l)+1)):
-        d1 = days[0].replace('2021-', '')
-        d2 = days[-1].replace('2021-', '')
-        name = f'dailydata-{d1}to{d2}.html'
-    else:
-        d1 = days[0].replace('2021-', '')
-        d2 = days[-1].replace('2021-', '')
-        name = f'dailydata-{d1}and{d2}.html'
+    if name is None:
+        if len(days) == 1:
+            d = days[0].replace('2021-', '')
+            name = f'dailydata-{d}.html'
+        elif sorted(l) == list(range(min(l), max(l)+1)):
+            d1 = days[0].replace('2021-', '')
+            d2 = days[-1].replace('2021-', '')
+            name = f'dailydata-{d1}to{d2}.html'
+        else:
+            d1 = days[0].replace('2021-', '')
+            d2 = days[-1].replace('2021-', '')
+            name = f'dailydata-{d1}and{d2}.html'
+    
     if os.path.exists(name):
         os.remove(name)
     with open(name, 'a') as f:
@@ -352,5 +392,6 @@ arr = np.array([[0, 5, 10, 15, 20, 25, 30],
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J')] # , ('1200', 'L'), ('1375', 'N'), ('1500', 'P')
 
 # show and save figure
-days = ['2021-03-08', '2021-03-09']
-print(final_graph(days))
+days = ['2021-03-20', '2021-03-21', '2021-03-22', '2021-03-23']
+# print(final_graph(days))
+print(final_graph(days, 'test.html'))
