@@ -1038,6 +1038,7 @@ path1 = 'Z:\\Goliath\\labdata\\vdionne\\Neige'
 cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200', 'L,M'), ('1375', 'N,O')] #, ('1500', 'P,Q')
 
 if __name__ == "__main__":
-    print(renamefiles_asDanwishes(path1))
-
+    for i in ['F', 'S']:
+        for x in ['325', '485', '650']:
+            classify_dates(f'400{i}{x}_rec_normF1000_rec.csv')
     pass
