@@ -17,14 +17,14 @@ warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 def Exceltocsv(path, name, headers, sheet_name=0, header=0, rows=None, startrow=None, columns=None, keepnan=True):
     """Read an Excel file and transform the useful data in a csv
     
-    path: str of the path of the file
+    path: str of the path of the Excel file
     name: name of the csv file
     headers: list of the names of the columns in the dataframe (must have the same number of columns entered)
     sheet_name: str or int of the Excel sheet we want to use (the first by default)
     header: last row of the heading where there's not data but for example the name of the columns (0 by default)
     rows: int of the number of the rows we want to store (all by default)
     startrow: int/list of the row/s we want to skip (None by default)
-    columns: str of the letter of the solums we want to store (all by default) -- EX: 'A,K' (columns A and K) 
+    columns: str of the letter of the colums we want to store (all by default) -- EX: 'A,K' (columns A and K) 
                                                                                       'A-K' (columns A to K)
     keepnan: bool to determine if we want to keep or not the NaN values (Yes/True by default)
 
@@ -87,7 +87,8 @@ def strip_names(path, error='qqq-'):
         if error in name:
             print(f'find {i}')
             nfc = os.path.join(path, name)
-            os.rename(nfc, os.path.join(path, name.replace(error, '', 1)))
+            #os.rename(nfc, os.path.join(path, name.replace(error, '', 1)))
+            os.remove(path+'\\'+name)
             i += 1
     return "it's done!"
 
@@ -494,6 +495,30 @@ def norm_std(path, column, columref):
         a, b, c = len(eff), max(eff), min(eff)
     return (a, b, c)
 
+def many_refs(paths, newname, columns=['date', 'irr']):
+    """ Create a dataframe with the weighted average of the irradiance of many references
+
+    paths: list of str of the path of the references
+    newname: str of the name of the dataframe returned
+    columns: list of the name of the columns in the files (['date', 'irr'] by default)
+
+    return the dataframe and save csv
+    """
+    data = pd.read_csv(paths[0], header=0)
+    i = 2
+    for path in paths[1:]:
+        data = pd.merge(data, pd.read_csv(path, header=0), on=columns[0], suffixes=('', str(i)))
+        i += 1
+    data.rename(columns={columns[1]: f'{columns[1]}1'}, inplace=True)
+    for col in data.columns[1:]:
+        data[col] = data[col]/(2*data[col].mean())
+    data[f'{columns[1]}_mean'] = data.iloc[:, 1:].mean(axis=1)
+    data = data[[columns[0], f'{columns[1]}_mean']]
+    data.rename(columns={f'{columns[1]}_mean': columns[1]}, inplace=True)
+    data.to_csv(f'{newname}.csv', index=None)
+    return data
+
+
 # Denoise fonctions
 def denoise_but(path, column, filter=0.1):
     """Denoise by a filter a column of a certain csv file
@@ -783,26 +808,31 @@ def round_data(path, column, sigfigs=3):
     return data
 
 # Identify periods
-def find_dates(path, dates, newname, headers, cols=None):
-    """Take only the data from a or many specific date/s
+def find_dates(path, dates, newname=None, headers=None, cols=None):
+    """Take only the data from a or many specify date/s
     
     path: str of the path of the file
     dates: list of str of the part of time we want to regroup (ex: '2021-01', all of the data in january)
-    newname: name of the file with the data filtred
-    headers: name of the columns of the new file
+    newname: name of the file with the data filtred (optional, if None, the same as the original file)
+    headers: name of the columns of the new file (optional, if None, the same as the original file)
     cols: list of the columns' index we want to conserve, all by default
 
     return the dataframe and save csv
     """
     df = pd.read_csv(path, header=0)
-    rows_to_keep = []
+    df['date'] = df['date'].astype(str)
+    all_df = pd.DataFrame()
     for date in dates:
-        for i, datehour in enumerate(df['date']):
-            if date in datehour:
-                rows_to_keep.append(i+1)
-    data = pd.read_csv(path, header=None, usecols=cols, skiprows= lambda x: x not in rows_to_keep)
-    data.to_csv(f"{newname}.csv", index=False, header=headers)
-    return data
+        df1 = df.loc[(date in datetime for datetime in df['date'])]
+        all_df = pd.concat([all_df, df1], axis=0)
+    df = all_df
+    df['date'] = df['date'].apply(pd.to_datetime)
+    df.reset_index(inplace = True, drop = True)
+    if newname is not None and headers is not None:
+        df.to_csv(f"{newname}.csv", index=False, header=headers)
+    else:
+        df.to_csv(path, index=False)
+    return df
 
 def find_height(path, height, window=[-3, 3], night=True):
     """Find differents periods where the height of a file is between the window entered
@@ -952,6 +982,30 @@ def truncate(path, keepnan = True, specifications=None):
                 raise NotImplementedError
     return data
 
+def get_night_datetime(days):
+    """Get the datetime of the night of the day
+    
+    days: list of the days we want to get the night datetime
+    
+    return a list of the night datetime
+    """
+    try:
+        yesterday =  (dt.datetime.strptime(days[0], '%Y-%m-%d')-dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+        night_hours = [(f'{yesterday[:10]} 20:00:00', f'{days[0][:10]} 07:00:00')]
+    except:
+        night_hours = [(f'{days[0][:10]} 00:00:00', f'{days[0][:10]} 07:00:00')]
+    yesterday = days[0]
+    if len(days) > 1:
+        for today in days[1:]:
+            night_hours.append((f'{yesterday[:10]} 20:00:00', f'{today[:10]} 07:00:00'))
+            yesterday = today
+    try:
+        tomorrow = (dt.datetime.strptime(days[-1], '%Y-%m-%d')+dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+        night_hours.append((f'{today[:10]} 20:00:00', f'{tomorrow[:10]} 07:00:00'))
+    except:
+        night_hours.append((f'{today[:10]} 20:00:00', f'{today[:10]} 23:59:59'))
+    return night_hours
+
 # Interpolation/curve fitting functions
 def interpolate(path, pathref, column, newname):
     """Create a new file with values interpolated (linear) at each seconds
@@ -1034,11 +1088,9 @@ def fit_expo(path=None, df=None, offset=[0, 0]):
     return pd.concat([x_pred, y_pred], axis=1)
 
 #Write info here
-path1 = 'Z:\\Goliath\\labdata\\vdionne\\Neige'
+path1 = 'C:\\Users\\Proprio\\OneDrive\Images\\Pellicule'
 cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200', 'L,M'), ('1375', 'N,O')] #, ('1500', 'P,Q')
 
 if __name__ == "__main__":
-    for i in ['F', 'S']:
-        for x in ['325', '485', '650']:
-            classify_dates(f'400{i}{x}_rec_normF1000_rec.csv')
+    
     pass

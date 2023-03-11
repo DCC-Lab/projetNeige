@@ -11,13 +11,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import scipy.signal as ss
 import varname as vn
+from plotly.subplots import make_subplots
 # from dcclab.database import *
 from scipy.optimize import curve_fit
 from sigfig import round as rd
 from sklearn.metrics import r2_score
 
 from fast_projet_neige_sensor_corrector.corrector import corrector, getZenith
-from manipfiles import classify_dates
+from manipfiles import classify_dates, get_night_datetime
 # from neigedb import NeigeDB
 
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
@@ -36,13 +37,14 @@ class SnowData:
                             about the normalization
     """
 
-    def __init__(self, path=None, from_database=False, has_dates=True, name=None, table=None, columns=None):
+    def __init__(self, path=None, from_database=False, has_dates=True, name=None, relevant=True, table=None, columns=None):
         """Initialize the attributes of the class to None except for df who comes from the path
         
         path: str of the path of the csv file who contains the dataframe (None by default)
         from_database: bool to determine if we want to create the dataframe from a database. If False, a path must be provide (False by default)
         has_dates: bool who convert the values of the 'date' column to datetime objects if True (True by default)
         name: str of the name of the object manipulate (file name by default)
+        relevant: bool to determine if we want to make a labbook of the modifications made on the dataframe (True by default)
         table: str of the name of the table we want to use if we want to create the dataframe from a database (None by default)
         columns: list of str of the columns we want to use if we want to create the dataframe from a database (None by default)
         """
@@ -58,7 +60,7 @@ class SnowData:
                 self.df = pd.read_csv(path)
             self.name = os.path.splitext(os.path.basename(path))[0] if name is None else name
         self.fit, self.trace, self.date_num= None, None, None
-        self.dates_tocorrect, self.df_norm, self.labbook  = [], [], LabBook(self.name)
+        self.dates_tocorrect, self.df_norm, self.labbook  = [], [], LabBook(self.name, relevant)
     
     def display(self, object='df'):
         """Print all of the dataframe specified
@@ -149,6 +151,64 @@ class SnowData:
         self.date_num.pop('date_norm')
         return self.date_num
 
+    def find_gaps(self, column='date', gap=300):
+        """ Regroupe the values of the attribute df according to the gap between the values of the column selected
+
+        column: str of the name of the column we want to use to find the gaps (date by default)
+        gap: float of the maximum gap between 2 values to consider them as belonging to the same group (90 by default)
+
+        return a list of dataframes, each one corresponding to a group of values
+        """
+        self.dfs = []
+        date0 = date1 = self.df[column][0]
+        for date2 in self.df[column][1:]:
+            if (date2-date1).total_seconds() >= gap and date2.day == date1.day:
+                self.dfs.append(self.df.loc[(self.df[column] >= date0) & (self.df[column] < date2)])
+                date0 = self.df.loc[self.df[column] < date2][column].iloc[-1]
+            date1 = date2
+
+        return self.dfs
+
+    def correct_timestamp(self, column='date'):
+        """Correct the timestamp of the values of the attribute df according to the gaps found by the method find_gaps.
+        More precisely, it redistributes the time between the first and the last value of each group of values according
+        to the number of values in the group.
+
+        column: str of the name of the column we want to use to find the gaps (date by default)
+
+        return the modified df
+        """
+        for df in self.dfs:
+            if df[column].iloc[-1].day == df[column].iloc[0].day:
+                delta_t = (df[column].iloc[-1]-df[column].iloc[0])
+                delta = delta_t/(df.shape[0]-1)
+                i=1
+                for date in df[column][1:-1]:
+                    new_date = df[column].iloc[0]+delta*i
+                    i+=1
+                    df.loc[df[column] == date, column] = new_date
+                df[column] = df[column].dt.round('1s')
+                self.df.update(df)
+            else:
+                date1 = df[column].iloc[-1].to_pydatetime()
+                date0 = df[column].iloc[0].to_pydatetime()
+                delta_t = (dt.datetime(2021, 3, date0.day, 18)-date0)+(date1-dt.datetime(2021, 3, date1.day, 8))
+                delta = delta_t/(df.shape[0]-1)
+                i=1
+                night_passed = False if date0.hour < 18 else True
+                for date in df[column][1:-1]:
+                    if date.hour == 8:
+                        night_passed = True 
+                    if night_passed:
+                        new_date = date0+delta*i+pd.Timedelta(hours=14)
+                    else:
+                        new_date = date0+delta*i 
+                    i+=1
+                    df.loc[df[column] == date, column] = new_date
+                df[column] = df[column].dt.round('1s')
+                self.df.update(df)
+        return self.df
+
     def fit_exp(self, x='height_moved', y='irr'):
         """Fit of an exponential function on the attribute df and save it in the attribute fit
 
@@ -233,6 +293,7 @@ class SnowData:
         object: str of the name of the dataframe among the 4 possible attributes we want to print ('df' by default)
         """
         name = self.name if name is None else name
+        # self.labbook.rename_labbook(name)
         if object == 'df':
             self.df.to_csv(f'{name}.csv', index=False)
         elif object == 'fit':
@@ -245,7 +306,7 @@ class SnowData:
         else:
             raise ValueError(f'{object} is not a valid object')
 
-    def make_fig(self, x, y, name=None, color=None, size=None, axis = ['', ''], mode='markers', colorscale='haline_r', cmin=None, cmax=None):
+    def make_fig(self, x, y, name=None, color=None, size=None, axis = ['', ''], mode='markers', colorscale='haline_r', cmin=None, cmax=None, opacity=1):
         """Create the attribute trace by initiating a scatter object
         
         x: str of the column in the dataframe representing the independent variable
@@ -258,6 +319,7 @@ class SnowData:
         colorscale: name of the colorscale we want to use ('haline_r' by default)
         cmin: minimum value of the colorscale (minimum value of the date by default)
         cmax: maximum value of the colorscale (maximum value of the date by default)
+        opacity: opacity of the points (1 by default)
         
         return the attribute trace
         """
@@ -278,17 +340,19 @@ class SnowData:
             self.trace = go.Scatter(x=data[x], y=data[y], mode=mode, marker_color=color, 
                         marker_size = size, name=name, customdata=all_data, hovertemplate=hovertext, 
                         hoverlabel={'namelength': 0}, xaxis=f'x{axis[0]}', yaxis=f'y{axis[1]}', 
-                        marker=dict(line=dict(width=0.2, color='black'), colorscale=colorscale, cmin=cmin, cmax=cmax))
+                        marker=dict(line=dict(width=0.2, color='black'), colorscale=colorscale, cmin=cmin, cmax=cmax), opacity=opacity)
         elif mode == 'lines':
             self.trace = go.Scatter(x=data[x], y=data[y], mode=mode, name=name, customdata=all_data, hovertemplate=hovertext, 
                         hoverlabel={'namelength': 0}, xaxis=f'x{axis[0]}', yaxis=f'y{axis[1]}', line_color=color)
         return self.trace
 
-    def rectify_data(self, x='irr', y='date', diffuse=None):
+    def rectify_data(self, x='irr', y='date', north=0, east=0, diffuse=None):
         """Rectify the data according to the diffusion throughout the day
         
         x: str of the column in the dataframe representing the independent variable ('irr' by default)
         y: str of the column in the dataframe representing the dependent variable ('date' by default)
+        north: float of the north shift on the sensor, or south if negative (0 by default)
+        east: float of the east shift on the sensor, or west if negative (0 by default)
         diffuse: dict of the days and boolean of their diffusion (None by default). If None, the diffusion
         is determined from the dataframe with the column 'sun level' (True for the days with sun level >= 3
         and False for the others)
@@ -310,7 +374,7 @@ class SnowData:
                 default_diffuse[day] = difbool
             else:
                 difbool = diffuse[day]
-            correctedData = c.correctData(df[x].tolist(), df[y].values.astype('datetime64[s]').tolist(), diffuse=difbool)
+            correctedData = c.correctData(df[x].tolist(), df[y].values.astype('datetime64[s]').tolist(), diffuse=difbool, northShift=north, eastShift=east)
             df_corr = pd.concat([df_corr, pd.DataFrame({y: df[y], x: correctedData})], axis=0)
             days.append(day)
         self.df[x], self.df[y] = df_corr[x], df_corr[y]
@@ -319,11 +383,11 @@ class SnowData:
         self.labbook.add_entry(self.rectify_data, args)
         return self.df
 
-    def remove_highangles(self, x='date', max_angle=80):
+    def remove_highangles(self, x='date', max_angle=60): 
         """Remove the data with high angles
         
         x: str of the column of the dates ('date' by default)
-        max_angle: maximum angle of the sun accepted (80 by default)
+        max_angle: maximum angle of the sun accepted (60 by default)
         
         return the corrected dataframe df
         """
@@ -398,7 +462,7 @@ class SnowData:
         self.labbook.add_entry(self.stripcolumns, {'column': real_cols})
         return self.df
 
-    def add_luminosity(self, pathlum='C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\luminosity.csv'):
+    def add_luminosity(self, pathlum='luminosity.csv'):
         """Add a column representing the sun level on the attribute df where the dates are the 
         date and the time in the same column
 
@@ -873,12 +937,13 @@ class LabBook:
         end (datetime): date and time of the end of the analysis
     """
 
-    def __init__(self, name):
+    def __init__(self, name, relevant=True):
         """Initialize the class LabBook by assigning an empty dictionnary to the attribute methods 
         
         name: str of the name of the object we manipulate
+        relevant: boolean to know if the labbook is relevant or not
         """
-        self.methods, self.steps, self.name, self.start, self.end = {}, [], name, None, None
+        self.methods, self.steps, self.name, self.start, self.end, self.relevant = {}, [], name, None, None, relevant
 
     def check_key(self, key):
         """Check if the key is in the attribute methods
@@ -944,7 +1009,8 @@ class LabBook:
         if str_method is None:
             str_method = self.fname
         self.add_method(str_method, self.find_features(args))
-        self.save_labbook()
+        if self.relevant:
+            self.save_labbook()
         return self.methods
 
     def save_labbook(self, name=None):
@@ -1005,7 +1071,8 @@ class LabBook:
         
         name: str of the new name of the csv file
         """
-        os.rename(f'labbook_{self.name}.csv', f'labbook_{name}.csv')
+        if self.relevant:
+            os.rename(f'labbook_{self.name}.csv', f'labbook_{name}.csv')
         self.name = name
 
     def join_labbook(self, other):
@@ -1050,5 +1117,4 @@ class LabBook:
                     self.add_method(method, features)
 
 if __name__ == "__main__":
-    
     pass

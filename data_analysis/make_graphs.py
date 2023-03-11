@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from manipfiles import fit_expo, truncate
+from manipfiles import fit_expo, get_night_datetime, truncate
 from snow_class import SnowData
 
 warnings.filterwarnings('ignore', category=RuntimeWarning)
@@ -145,203 +145,214 @@ def sixgraphs(traces, logs=[1, 0, 0, 0, 0, 0], title=None):
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
     return fig
 
-def get_night_datetime(days):
-    """Get the datetime of the night of the day
-    
-    days: list of the days we want to get the night datetime
-    
-    return a list of the night datetime
-    """
-    try:
-        yesterday =  (dt.datetime.strptime(days[0], '%Y-%m-%d')-dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
-        night_hours = [(f'{yesterday[:10]} 20:00:00', f'{days[0][:10]} 07:00:00')]
-    except:
-        night_hours = [(f'{days[0][:10]} 00:00:00', f'{days[0][:10]} 07:00:00')]
-    yesterday = days[0]
-    if len(days) > 1:
-        for today in days[1:]:
-            night_hours.append((f'{yesterday[:10]} 20:00:00', f'{today[:10]} 07:00:00'))
-            yesterday = today
-    try:
-        tomorrow = (dt.datetime.strptime(days[-1], '%Y-%m-%d')+dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
-        night_hours.append((f'{today[:10]} 20:00:00', f'{tomorrow[:10]} 07:00:00'))
-    except:
-        night_hours.append((f'{today[:10]} 20:00:00', f'{today[:10]} 23:59:59'))
-    return night_hours
+class Graphs_Snowdata(SnowData):
+    def __init__(self, shift):
+        self.list_sensors = []
+        self.shift = shift
 
-def graph_dailydata(days):
-    """Make a graph of all the relevant features of (a) certain day(s)
-    
-    days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
-        (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+    def graph_dailydata(self, days):
+        """Make a graph of all the relevant features of (a) certain day(s)
+        
+        days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
 
-    return the figure
-    """
-    traces = initialize_classes_dailydata(days)
-    fig = make_subplots(rows=2, cols=2, specs=[[{}, {"secondary_y": True}], [{}, {}]], subplot_titles=tuple(str(key) for key in traces.keys()))
-    axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm', '5':'temperature (°C)', '6':'wind speed (m/s)'}
-    titles = {}
-    for i, trace in traces.items():
-        if i % 2 == 0:
-            col=1
-        else:
-            col=2
-        row = int((-col+3+i)/2)
-        for tra in trace:
-            fig.add_trace(tra, row=row, col=col)
-        fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], row=row, col=col)
-        fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
-        titles[i] = trace[0]['name']
-    fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
-    fig.update_layout(template='simple_white', title=f'{days} daily measurements data')
-    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
-    for x0, x1 in get_night_datetime(days):
-        fig.add_vrect(x0=x0, x1=x1, row="all", col="all", 
-            annotation_text="night", annotation_position="top left", fillcolor='rgb(217, 217, 217)', opacity=1, line_width=0)
-    return fig
-
-def graphs_sensors_height(days):
-    """Make a graph of the irradiance according to the height with all the buried sensors of (a) certain day(s)
-    
-    days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
-        (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
-
-    return the figure
-    """
-    traces = []
-    for h in ['325', '485', '650']:
-        for L in ['F', 'S']:
-            list = initialize_classes_sensor(f'400{L+h}', days)
-            if list is False:
-                continue
+        return the figure
+        """
+        traces = self.initialize_classes_dailydata(days)
+        fig = make_subplots(rows=2, cols=2, specs=[[{}, {"secondary_y": True}], [{}, {}]], subplot_titles=tuple(str(key) for key in traces.keys()))
+        axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm', '5':'temperature (°C)', '6':'wind speed (m/s)'}
+        titles = {}
+        for i, trace in traces.items():
+            if i % 2 == 0:
+                col=1
             else:
-                traces.append(list)
-    if len(traces) % 2 != 0:
-        raise ValueError('The number of traces is not even')
-    specs = [[{"secondary_y": True}, {"secondary_y": True}] for _ in range(len(traces)//2)]
-    fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
-    axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
-    titles = {}
-    for i, trace in enumerate(traces):
-        if i % 2 == 0:
-            col=1
-        else:
-            col=2
-        row = int((-col+3+i)/2)
-        for tra in trace:
-            fig.add_trace(tra, row=row, col=col)
-        fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], type='log', row=row, col=col)
-        fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
-        titles[i] = trace[0]['name']
-    fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
-    fig.update_layout(template='simple_white', title=f'Irradiance normalized according to the snow height over the sensors on {days}')
-    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
-    return fig
+                col=2
+            row = int((-col+3+i)/2)
+            for tra in trace:
+                fig.add_trace(tra, row=row, col=col)
+            fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], row=row, col=col)
+            fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+            titles[i] = trace[0]['name']
+        fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
+        fig.update_layout(template='simple_white', title=f'{days} daily measurements data')
+        fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+        for x0, x1 in get_night_datetime(days):
+            fig.add_vrect(x0=x0, x1=x1, row="all", col="all", 
+                annotation_text="night", annotation_position="top left", fillcolor='rgb(217, 217, 217)', opacity=1, line_width=0)
+        return fig
 
-def graphs_sensors_date(days):
-    """Make a graph of the irradiance according to the date with all the buried sensors of (a) certain day(s)
+    def graphs_sensors_height(self, days):
+        """Make a graph of the irradiance according to the height with all the buried sensors of (a) certain day(s)
+        
+        days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
 
-    days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
-        (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
-    
-    return the figure
-    """
-    traces = []
-    for h in ['325', '485', '650']:
-        for L in ['F', 'S']:
-            list = initialize_classes_sensor(f'400{L+h}', days, x='date')
-            if list is False:
-                continue
+        return the figure
+        """
+        traces = []
+        for h in ['325', '485', '650']:
+            for L in ['F', 'S']:
+                list = self.initialize_classes_sensor(f'400{L+h}', days)
+                if list is False:
+                    continue
+                else:
+                    traces.append(list)
+        if len(traces) % 2 != 0:
+            raise ValueError('The number of traces is not even')
+        specs = [[{"secondary_y": True}, {"secondary_y": True}] for _ in range(len(traces)//2)]
+        fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
+        axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
+        titles = {}
+        for i, trace in enumerate(traces):
+            if i % 2 == 0:
+                col=1
             else:
-                traces.append(list)
-    if len(traces) % 2 != 0:
-        raise ValueError('The number of traces is not even')
-    specs = [[{"secondary_y": True}, {"secondary_y": True}] for _ in range(len(traces)//2)]
-    fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
-    axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
-    titles = {}
-    for i, trace in enumerate(traces):
-        if i % 2 == 0:
-            col=1
-        else:
-            col=2
-        row = int((-col+3+i)/2)
-        for tra in trace:
-            fig.add_trace(tra, row=row, col=col)
-        fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
-        titles[i] = trace[0]['name']
-    fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
-    fig.update_layout(template='simple_white', title=f'Irradiance normalized according to date on {days}')
-    fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
-    for x0, x1 in get_night_datetime(days):
-        fig.add_vrect(x0=x0, x1=x1, row="all", col="all", 
-            annotation_text="night", annotation_position="top left", fillcolor='rgb(217, 217, 217)', opacity=1, line_width=0)
-    return fig
+                col=2
+            row = int((-col+3+i)/2)
+            for tra in trace:
+                fig.add_trace(tra, row=row, col=col)
+            fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], type='log', row=row, col=col)
+            fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+            titles[i] = trace[0]['name']
+        fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
+        fig.update_layout(template='simple_white', title=f'Irradiance normalized according to the snow height over the sensors on {days}')
+        fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+        return fig
 
-def initialize_classes_dailydata(days):
-    """Initialize all the scatter traces needed to make a daily data graph
-    
-    days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
-        (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+    def graphs_sensors_date(self, days):
+        """Make a graph of the irradiance according to the date with all the buried sensors of (a) certain day(s)
 
-    return a dictonary of the traces where the key is the position of the subplot and 
-            the values are the list of the traces at this position
-    """
-    wind = SnowData('Wind_speed.csv')
-    wind.find_dates(days)
-    trace3 = wind.make_fig('date', 'wind_speed', 'Wind speed', color='wind_angle', axis=['1', '6'], 
-                            colorscale='hsv', cmin=0, cmax=360)
-    height =  SnowData('all_heightsV.csv')
-    height.find_dates(days)
-    height.datetonum()
-    data = height.df
-    temp = SnowData('Temperature.csv')
-    temp.find_dates(days)
-    temp.datetonum(min=data['date'].min())
-    trace4 = temp.make_fig('date', 'temperature', 'Temperature', axis=['1', '5'], color='humidity', colorscale='burg')
-    height.poly_fit(temp, y='height', split_date=False)
-    trace2 = height.make_fig('date', 'height', 'Snow height', axis=['1', '2'])
-    trace21 = height.make_fig('date', 'height', 'Snow height fitted', axis=['1', '2'], mode='lines', color='green')
-    cnr4 = SnowData('ISWR-strip.csv')
-    cnr4.find_dates(days)
-    trace1 = cnr4.make_fig('date', 'irr', 'CNR4 irradiance', axis=['1', '3'])
-    return {0:[trace1], 1:[trace2, trace21], 2:[trace3], 3:[trace4]}
+        days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+        
+        return the figure
+        """
+        traces = []
+        for h in ['325', '485', '650']:
+            for L in ['F', 'S']:
+                list = self.initialize_classes_sensor(f'400{L+h}', days, x='date')
+                if list is False:
+                    continue
+                else:
+                    traces.append(list)
+        if len(traces) % 2 != 0:
+            raise ValueError('The number of traces is not even')
+        specs = [[{"secondary_y": True}, {"secondary_y": True}] for _ in range(len(traces)//2)]
+        fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
+        axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
+        titles = {}
+        for i, trace in enumerate(traces):
+            if i % 2 == 0:
+                col=1
+            else:
+                col=2
+            row = int((-col+3+i)/2)
+            for tra in trace:
+                fig.add_trace(tra, row=row, col=col)
+            fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+            titles[i] = trace[0]['name']
+        fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
+        fig.update_layout(template='simple_white', title=f'Irradiance normalized according to date on {days}')
+        fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
+        for x0, x1 in get_night_datetime(days):
+            fig.add_vrect(x0=x0, x1=x1, row="all", col="all", 
+                annotation_text="night", annotation_position="top left", fillcolor='rgb(217, 217, 217)', opacity=1, line_width=0)
+        return fig
 
-def initialize_classes_sensor(sensor, days, x='height_moved'):
-    """Initialize all the scatter traces needed to make a sensor graph 
-    
-    sensor: str of the name of the sensor (ex. '400F325')
-    days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
-        (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
-    x: str of the name of the column we want to use as x axis (default: 'height_moved')
+    def initialize_classes_dailydata(self, days):
+        """Initialize all the scatter traces needed to make a daily data graph
+        
+        days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
 
-    return a list of the traces
-    """
-    height =  SnowData('all_heightsV.csv')
-    height.find_dates(days)
-    height.modify_data('height', -int(sensor[4:])/10)
-    height.datetonum()
-    data = height.df
-    if data['height_moved'].le(3).any():
-        return False
-    classnorm = SnowData(f'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\{sensor}_normF1000_rec.csv')
-    classnorm.find_dates(days)
-    classnorm.datetonum(min=data['date'].min())
-    if x == 'height_moved':
-        height.poly_fit(classnorm, split_date=False)
-        classnorm.add_column(height)
-        classnorm.remove_highangles()
-        trace0 = classnorm.make_fig('height_moved', 'irr_ro_uns i0-norm_ro_denoisedR', f'{sensor}_normF1000_rec', axis=['2', '4'], color='hour-min')
-        param = classnorm.fit_exp(y='irr_ro_uns i0-norm_ro_denoisedR')
-        trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'curve_fit m={param[0]:.3g}', axis=['2', '4'], mode='lines', color='red')
-        return [trace0, trace01]
-    elif x == 'date':
-        classnorm.remove_highangles()
-        trace0 = classnorm.make_fig('date', 'irr', f'{sensor}', axis=['1', '3'])
-        trace01 = classnorm.make_fig('date', 'irr_ro_uns i0-norm_ro_denoisedR', f'{sensor}_normF1000_rec', axis=['1', '3'], color='hour-min')
-        return [trace0, trace01]
+        return a dictonary of the traces where the key is the position of the subplot and 
+                the values are the list of the traces at this position
+        """
+        wind = SnowData('Wind_speed.csv', relevant=False)
+        wind.find_dates(days)
+        trace3 = wind.make_fig('date', 'wind_speed', 'Wind speed', color='wind_angle', axis=['1', '6'], 
+                                colorscale='hsv', cmin=0, cmax=360)
+        height =  SnowData('all_heightsV.csv', relevant=False)
+        height.find_dates(days)
+        height.datetonum()
+        data = height.df
+        temp = SnowData('Temperature.csv', relevant=False)
+        temp.find_dates(days)
+        temp.datetonum(min=data['date'].min())
+        trace4 = temp.make_fig('date', 'temperature', 'Temperature', axis=['1', '5'], color='humidity', colorscale='burg')
+        height.poly_fit(temp, y='height', split_date=True)
+        trace2 = height.make_fig('date', 'height', 'Snow height', axis=['1', '2'])
+        trace21 = height.make_fig('date', 'height', 'Snow height fitted', axis=['1', '2'], mode='lines', color='green')
+        cnr4 = SnowData('ISWR-strip.csv', relevant=False)
+        cnr4.find_dates(days)
+        trace1 = cnr4.make_fig('date', 'irr', 'CNR4 irradiance', axis=['1', '3'])
+        return {0:[trace1], 1:[trace2, trace21], 2:[trace3], 3:[trace4]}
 
-def final_graph(days, name=None):
+    def initialize_classes_sensor(self, sensor, days, x='height_moved'):
+        """Initialize all the scatter traces needed to make a sensor graph 
+        
+        sensor: str of the name of the sensor (ex. '400F325')
+        days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+        x: str of the name of the column we want to use as x axis (default: 'height_moved')
+        shift: list of 2 int of the shift we want to apply to the reference sensor (default: [0, 0])
+            (ex. [10, 5] means we want to shift the reference sensor 10 units to the north and 5 units to the east (negative values for south and west))
+
+        return a list of the traces
+        """
+        height =  SnowData('all_heightsV.csv')
+        height.find_dates(days)
+        height.modify_data('height', -int(sensor[4:])/10)
+        height.datetonum()
+        data = height.df
+        if data['height_moved'].le(3).any():
+            return False
+        if sensor not in self.list_sensors:
+            self.normalize_sensor(sensor, days, denoise=False)
+            self.list_sensors.append(sensor)
+        classnorm = SnowData(f'{sensor}_g_normFrefs.csv')
+        classnorm.find_dates(days)
+        classnorm.add_luminosity()
+        classnorm.classify_dates()
+        classnorm.datetonum(min=data['date'].min())
+        if x == 'height_moved':
+            height.poly_fit(classnorm, split_date=True)
+            classnorm.add_column(height)
+            classnorm.remove_highangles()
+            trace0 = classnorm.make_fig('height_moved', 'irr_ro i0-norm_ro', f'{sensor}_normFrefs', axis=['2', '4'], color='hour-min')
+            param = classnorm.fit_exp(y='irr_ro i0-norm_ro')
+            trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'curve_fit m={param[0]:.3g}', axis=['2', '4'], mode='lines', color='red')
+            return [trace0, trace01]
+        elif x == 'date':
+            classnorm.remove_highangles()
+            trace0 = classnorm.make_fig('date', 'irr', f'{sensor}', axis=['1', '3'])
+            trace01 = classnorm.make_fig('date', 'irr_ro i0-norm_ro', f'{sensor}_normFrefs', axis=['1', '3'], color='hour-min')
+            return [trace0, trace01]
+
+    def normalize_sensor(self, sensor, days, denoise=False):
+        """Normalize the data of a sensor with the data of the reference sensor
+
+        sensor: str of the name of the sensor (ex. '400F325')
+        days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+        denoise: bool to know if we want to denoise the data (default: False)
+        shift: list of 2 int of the shift we want to apply to the reference sensor (default: [0, 0])
+            (ex. [10, 5] means we want to shift the reference sensor 10 units to the north and 5 units to the east (negative values for south and west))
+        """
+
+        cap = SnowData(f'{sensor}_g.csv', name=sensor)
+        ref = SnowData('400Frefs_g.csv', name='400Frefs', relevant=False)
+        cap.round_data('irr')
+        ref.round_data('irr')
+        ref.add_luminosity()
+        ref.rectify_data(x='irr_ro', north=self.shift[0], east=self.shift[1])
+        cap.norm_i0(ref, 'irr_ro')
+        cap.round_data('irr_ro i0-norm', object='df_norm')
+        if denoise:
+            cap.denoise_med('irr_ro i0-norm_ro')
+        cap.save(f'{sensor}_g', object='df_norm')
+
+def final_graph(days, name=None, shift=[0, 0]):
     """Make the final graph with all the traces
     
     days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
@@ -349,10 +360,10 @@ def final_graph(days, name=None):
     name: str of the name of the file we want to save the graph (dailydata-"days".html by default)
     
     save all the traces in a graph and open it"""
-
-    fig1 = graph_dailydata(days)
-    fig2 = graphs_sensors_height(days)
-    fig3 = graphs_sensors_date(days)
+    param = Graphs_Snowdata(shift=shift)
+    fig1 = param.graph_dailydata(days)
+    fig2 = param.graphs_sensors_height(days)
+    fig3 = param.graphs_sensors_date(days)
     l = [dt.datetime.strptime(day, '%Y-%m-%d') for day in days]
     l = [(day-min(l)).days for day in l]
     if name is None:
@@ -376,11 +387,10 @@ def final_graph(days, name=None):
         f.write(fig3.to_html(full_html=False, include_plotlyjs='cdn'))
     
     new = 2 # open in a new tab, if possible
-    url = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\' + name
+    url = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage I\\Data\\' + name
     webbrowser.open(url,new=new)
 
 #Write info here
-path1 = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\400F650_norm1000+heightsV.csv'
 names = {'A': 'Automatic', 'B': 'Benjamin', 'C': 'CRN4', 'M': 'Manual', 'F':'Forent', 'V': 'Valérie'}
 axis = ['irr', 'irr_pred']
 scale=[[0.01, 1.6], [0.01, 1.6]]
@@ -395,3 +405,4 @@ cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J')] # , ('1200', 'L
 days = ['2021-03-20', '2021-03-21', '2021-03-22', '2021-03-23']
 # print(final_graph(days))
 print(final_graph(days, 'test.html'))
+
