@@ -9,16 +9,22 @@ import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import scipy.signal as ss
+import snowoptics
+import tartes
 import varname as vn
 from plotly.subplots import make_subplots
+from pylab import *
 # from dcclab.database import *
 from scipy.optimize import curve_fit
 from sigfig import round as rd
 from sklearn.metrics import r2_score
+from tartes.impurities import Soot
 
 from fast_projet_neige_sensor_corrector.corrector import corrector, getZenith
 from manipfiles import classify_dates, get_night_datetime
+
 # from neigedb import NeigeDB
 
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
@@ -52,7 +58,9 @@ class SnowData:
             # self.db = NeigeDB()
             # self.df = self.db.getvaluesfromtable(table, columns, has_dates)
             # self.name = name
-            raise NotImplementedError('the method from_database is not implemented yet')
+            # raise NotImplementedError('the method from_database is not implemented yet')
+            self.name = "None"
+            pass
         else:
             if has_dates:
                 self.df = pd.read_csv(path, parse_dates=['date'])
@@ -80,211 +88,6 @@ class SnowData:
         else:
             raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
         print(data.to_string())
-
-    def find_dates(self, dates):
-        """Truncate the attribute df to have only the dates wanted
-
-        dates: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
-            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
-        
-        return the modified df 
-        """
-        args = locals()
-        self.df['date'] = self.df['date'].astype(str)
-        all_df = pd.DataFrame()
-        for date in dates:
-            df1 = self.df.loc[(date in datetime for datetime in self.df['date'])]
-            all_df = pd.concat([all_df, df1], axis=0)
-        self.df = all_df
-        self.df['date'] = self.df['date'].apply(pd.to_datetime)
-        self.df.reset_index(inplace = True, drop = True)
-        self.labbook.add_entry(self.find_dates, args)
-        return self.df
-
-    def truncate_col(self, column, window=(0, 9999), keepnan=True):
-        """Truncate the attribute df according to the values of a certain column
-
-        column: str of the column we want to truncate
-        window: a list of values we want to keep or a tuple of 2 values being the minimum and maximum values limiting the interval of interest (all values by default)
-        keepnan: bool to determine if we want to keep or not the NaN values (Yes/True by default)
-
-        return the modified df
-        """
-        args = locals()
-        if type(window) is tuple:
-            self.df = self.df.loc[((self.df[column] >= window[0]) & (self.df[column] <= window[1])) | (np.isnan(self.df[column]) & keepnan)]
-        elif type(window) is list:
-            self.df = self.df.loc[(((i in window) or (np.isnan(i) & keepnan)) for i in self.df[column])]
-        else:
-            raise NotImplementedError(f'the type {type(window)} is not implemented yet')
-        self.labbook.add_entry(self.truncate_col, args, 'truncate')
-        return self.df
-
-    def modify_data(self, column, offset):
-        """Modify the values of a column by adding a number and add these modified values in another column
-
-        column: str of the name of the column we want to modify
-        offset: float we want to add to the column selected
-
-        return the modified df
-        """
-        args = locals()
-        self.df[f'{column}_moved'] = self.df[column] + offset
-        self.labbook.add_entry(self.modify_data, args)
-        return self.df
-
-    def datetonum(self, min=None):
-        """Create the attribute date_num with the 'date' column of df. More precisely, it transforms the datetime object
-        in numerical values, that is the number of hours elapsed since the reference (min) entered. It also creates tow 
-        new columns with the date and the hour of the day.
-        
-        min: date (datetime object) representing the reference for the numerical values
-
-        return the attribute date_num
-        """
-        if min is None:
-            min = self.df['date'].min()
-        self.date_num = pd.DataFrame({'date': self.df['date'], 'date_norm': self.df['date']-min})
-        # self.date_num.reset_index(inplace = True, drop = True)
-        self.date_num['day'], self.date_num['hour'] = self.date_num["date"].dt.day, self.date_num['date'].dt.hour
-        self.date_num["date_num"] = self.date_num["date_norm"].dt.days*24+self.date_num["date_norm"].dt.seconds/3600        
-        self.date_num.pop('date_norm')
-        return self.date_num
-
-    def find_gaps(self, column='date', gap=300):
-        """ Regroupe the values of the attribute df according to the gap between the values of the column selected
-
-        column: str of the name of the column we want to use to find the gaps (date by default)
-        gap: float of the maximum gap between 2 values to consider them as belonging to the same group (90 by default)
-
-        return a list of dataframes, each one corresponding to a group of values
-        """
-        self.dfs = []
-        date0 = date1 = self.df[column][0]
-        for date2 in self.df[column][1:]:
-            if (date2-date1).total_seconds() >= gap and date2.day == date1.day:
-                self.dfs.append(self.df.loc[(self.df[column] >= date0) & (self.df[column] < date2)])
-                date0 = self.df.loc[self.df[column] < date2][column].iloc[-1]
-            date1 = date2
-
-        return self.dfs
-
-    def correct_timestamp(self, column='date'):
-        """Correct the timestamp of the values of the attribute df according to the gaps found by the method find_gaps.
-        More precisely, it redistributes the time between the first and the last value of each group of values according
-        to the number of values in the group.
-
-        column: str of the name of the column we want to use to find the gaps (date by default)
-
-        return the modified df
-        """
-        for df in self.dfs:
-            if df[column].iloc[-1].day == df[column].iloc[0].day:
-                delta_t = (df[column].iloc[-1]-df[column].iloc[0])
-                delta = delta_t/(df.shape[0]-1)
-                i=1
-                for date in df[column][1:-1]:
-                    new_date = df[column].iloc[0]+delta*i
-                    i+=1
-                    df.loc[df[column] == date, column] = new_date
-                df[column] = df[column].dt.round('1s')
-                self.df.update(df)
-            else:
-                date1 = df[column].iloc[-1].to_pydatetime()
-                date0 = df[column].iloc[0].to_pydatetime()
-                delta_t = (dt.datetime(2021, 3, date0.day, 18)-date0)+(date1-dt.datetime(2021, 3, date1.day, 8))
-                delta = delta_t/(df.shape[0]-1)
-                i=1
-                night_passed = False if date0.hour < 18 else True
-                for date in df[column][1:-1]:
-                    if date.hour == 8:
-                        night_passed = True 
-                    if night_passed:
-                        new_date = date0+delta*i+pd.Timedelta(hours=14)
-                    else:
-                        new_date = date0+delta*i 
-                    i+=1
-                    df.loc[df[column] == date, column] = new_date
-                df[column] = df[column].dt.round('1s')
-                self.df.update(df)
-        return self.df
-
-    def fit_exp(self, x='height_moved', y='irr'):
-        """Fit of an exponential function on the attribute df and save it in the attribute fit
-
-        x: indepedent variable ('height_moved' by default)
-        y: dependant variable ('irr' by default)
-
-        return the 2 parameters of the fit (y(log)=mx+b)
-        """
-        self.fit = pd.DataFrame({x: self.df[x], y: self.df[y]}).sort_values(by=x)
-        def fitfunction(x, m, b):
-            return m*x+b
-        self.fit[y] = np.log(self.fit[y])
-        self.fit.replace([np.inf, -np.inf], np.nan, inplace=True)
-        self.fit = self.fit.dropna()
-        parameters, covariance = curve_fit(fitfunction, self.fit[x], self.fit[y])
-        r = r2_score(self.fit[y], fitfunction(self.fit[x], *parameters))
-        args = locals()
-        x_pred = pd.DataFrame({x:list(i for i in np.arange(0.5*round(min(self.fit[x])/0.5), 0.5*round(max(self.fit[x])/0.5)+0.5, 0.5))})
-        y_pred = np.exp(fitfunction(x_pred, *parameters)).rename(columns={x:f'irr_pred'})
-        self.fit = pd.concat([x_pred, y_pred], axis=1)
-        args['type'] = 'decrease exponential'
-        self.labbook.add_entry(self.fit_exp, args, 'fit')
-        return parameters
-
-    def poly_fit(self, other, x='date', y='height_moved', split_date=True):
-        """Fit a 3rd degree polynomial function on the attribute df and save it in the attribute fit
-
-        x: indepedent variable ('date' by default)
-        y: dependant variable ('height_moved' by default)
-        split_date: bool to determine if we want to split the data according to the date (Yes/True by default)
-
-        return the attribute fit
-        """
-        args = locals()
-        args['type'] = 'polynomial-3'
-        if self.date_num is None or self.date_num[x].equals(self.df[x]) is False:
-            raise ValueError('self.date_num is not accurate')
-        self.df.reset_index(inplace = True, drop = True)
-        self.fit = pd.DataFrame({x: self.date_num['date_num'], y: self.df[y], 'day': self.date_num['day'], 'hour': self.date_num['hour']}).sort_values(by=x)
-        days = []
-        df_fit = pd.DataFrame()
-        if split_date:
-            for day in self.fit['day']:
-                if day in days:
-                    continue
-                df = self.fit.loc[(self.fit['day'] == day) & (self.fit['hour'] >= 7) & (self.fit['hour'] <= 20)]
-                dates = other.date_num.loc[other.date_num['day'] == day]
-                poly = np.polyfit(df[x], df[y], 3)
-                fct = np.poly1d(poly)
-                df_fit = pd.concat([df_fit, pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})], axis=0)
-                days.append(day)
-        else:
-            df = self.fit.loc[(self.fit['hour'] >= 7) & (self.fit['hour'] <= 20)]
-            dates = other.date_num
-            poly = np.polyfit(df[x], df[y], 3)
-            fct = np.poly1d(poly)
-            df_fit = pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})
-        self.fit = df_fit
-        args['parameters'] = poly
-        self.labbook.add_entry(self.poly_fit, args, 'fit')
-        return self.fit
-
-    def add_column(self, other, x='date', y='height_moved'):
-        """Add a column to the attribute df with the values of another attribute fit
-
-        x: common column between the 2 df ('date' by default)
-        y: column we want to add in the self.df with the values of the same column in other.df
-
-        return the modified df
-        """
-        args = locals()
-        if other.fit[x].equals(self.df[x]) is False:
-            raise ValueError(f'the column {x} is not the same between self.df and other.fit')
-        self.df[y] = other.fit[y].to_list()
-        self.labbook.add_entry(self.add_column, args)
-        return self.df
 
     def save(self, name=None, object='df'):
         """Save the dataframe specified
@@ -346,57 +149,58 @@ class SnowData:
                         hoverlabel={'namelength': 0}, xaxis=f'x{axis[0]}', yaxis=f'y{axis[1]}', line_color=color)
         return self.trace
 
-    def rectify_data(self, x='irr', y='date', north=0, east=0, diffuse=None):
-        """Rectify the data according to the diffusion throughout the day
+    def find_dates(self, dates):
+        """Truncate the attribute df to have only the dates wanted
+
+        dates: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
         
-        x: str of the column in the dataframe representing the independent variable ('irr' by default)
-        y: str of the column in the dataframe representing the dependent variable ('date' by default)
-        north: float of the north shift on the sensor, or south if negative (0 by default)
-        east: float of the east shift on the sensor, or west if negative (0 by default)
-        diffuse: dict of the days and boolean of their diffusion (None by default). If None, the diffusion
-        is determined from the dataframe with the column 'sun level' (True for the days with sun level >= 3
-        and False for the others)
-        
-        return the corrected dataframe df
+        return the modified df 
         """
         args = locals()
-        c = corrector()
-        days, default_diffuse = [], {}
-        df_corr = pd.DataFrame()
-        self.df['day'] = [date.date() for date in self.df['date']]
-        self.df['day'] = self.df['day'].astype(str)
-        for day in self.df['day']:
-            if day in days:
-                continue
-            df = self.df.loc[self.df['day'] == day]
-            if diffuse is None:
-                difbool = False if df['sun level'].iloc[0] >= 3 else True
-                default_diffuse[day] = difbool
-            else:
-                difbool = diffuse[day]
-            correctedData = c.correctData(df[x].tolist(), df[y].values.astype('datetime64[s]').tolist(), diffuse=difbool, northShift=north, eastShift=east)
-            df_corr = pd.concat([df_corr, pd.DataFrame({y: df[y], x: correctedData})], axis=0)
-            days.append(day)
-        self.df[x], self.df[y] = df_corr[x], df_corr[y]
-        diffuse = default_diffuse if diffuse is None else diffuse
-        args['diffuse'] = diffuse
-        self.labbook.add_entry(self.rectify_data, args)
+        self.df['date'] = self.df['date'].astype(str)
+        all_df = pd.DataFrame()
+        for date in dates:
+            df1 = self.df.loc[(date in datetime for datetime in self.df['date'])]
+            all_df = pd.concat([all_df, df1], axis=0)
+        self.df = all_df
+        self.df['date'] = self.df['date'].apply(pd.to_datetime)
+        self.df.reset_index(inplace = True, drop = True)
+        self.labbook.add_entry(self.find_dates, args)
         return self.df
 
-    def remove_highangles(self, x='date', max_angle=60): 
-        """Remove the data with high angles
-        
-        x: str of the column of the dates ('date' by default)
-        max_angle: maximum angle of the sun accepted (60 by default)
-        
-        return the corrected dataframe df
+    def truncate_col(self, column, window=(0, 9999), keepnan=True):
+        """Truncate the attribute df according to the values of a certain column
+
+        column: str of the column we want to truncate
+        window: a list of values we want to keep or a tuple of 2 values being the minimum and maximum values limiting the interval of interest (all values by default)
+        keepnan: bool to determine if we want to keep or not the NaN values (Yes/True by default)
+
+        return the modified df
         """
         args = locals()
-        df = self.df
-        for date in df[x].values.astype('datetime64[s]').tolist():
-            if getZenith(date) >= max_angle:
-                self.df = self.df.drop(self.df[self.df[x] == date].index)
-        self.labbook.add_entry(self.remove_highangles, args)
+        if type(window) is tuple:
+            self.df = self.df.loc[((self.df[column] >= window[0]) & (self.df[column] <= window[1])) | (np.isnan(self.df[column]) & keepnan)]
+        elif type(window) is list:
+            self.df = self.df.loc[(((i in window) or (np.isnan(i) & keepnan)) for i in self.df[column])]
+        else:
+            raise NotImplementedError(f'the type {type(window)} is not implemented yet')
+        self.labbook.add_entry(self.truncate_col, args, 'truncate')
+        return self.df
+
+    def add_column(self, other, x='date', y='height_moved'):
+        """Add a column to the attribute df with the values of another attribute fit
+
+        x: common column between the 2 df ('date' by default)
+        y: column we want to add in the self.df with the values of the same column in other.df
+
+        return the modified df
+        """
+        args = locals()
+        if other.fit[x].equals(self.df[x]) is False:
+            raise ValueError(f'the column {x} is not the same between self.df and other.fit')
+        self.df[y] = other.fit[y].to_list()
+        self.labbook.add_entry(self.add_column, args)
         return self.df
 
     def shift_data(self, column, offset):
@@ -415,6 +219,37 @@ class SnowData:
         self.df[f'{column} shifted'] = values
         self.labbook.add_entry(self.shift_data, args)
         return self.df
+
+    def modify_data(self, column, offset):
+        """Modify the values of a column by adding a number and add these modified values in another column
+
+        column: str of the name of the column we want to modify
+        offset: float we want to add to the column selected
+
+        return the modified df
+        """
+        args = locals()
+        self.df[f'{column}_moved'] = self.df[column] + offset
+        self.labbook.add_entry(self.modify_data, args)
+        return self.df
+
+    def datetonum(self, min=None):
+        """Create the attribute date_num with the 'date' column of df. More precisely, it transforms the datetime object
+        in numerical values, that is the number of hours elapsed since the reference (min) entered. It also creates tow 
+        new columns with the date and the hour of the day.
+        
+        min: date (datetime object) representing the reference for the numerical values
+
+        return the attribute date_num
+        """
+        if min is None:
+            min = self.df['date'].min()
+        self.date_num = pd.DataFrame({'date': self.df['date'], 'date_norm': self.df['date']-min})
+        # self.date_num.reset_index(inplace = True, drop = True)
+        self.date_num['day'], self.date_num['hour'] = self.date_num["date"].dt.day, self.date_num['date'].dt.hour
+        self.date_num["date_num"] = self.date_num["date_norm"].dt.days*24+self.date_num["date_norm"].dt.seconds/3600        
+        self.date_num.pop('date_norm')
+        return self.date_num
 
     def classify_dates(self):
         """Add two columns to the attribute df to add a specific id for each day and another for each 
@@ -484,6 +319,54 @@ class SnowData:
         if datetime:
             self.df['date'] = pd.to_datetime(self.df['date'])
         return self.df
+
+    def round_data(self, column, sigfigs=3, object='df'):
+        """Round a specific column of a dataframe to a specific number of significant figures
+        
+        column: str of the name of the column we want to round
+        sigfigs: int of the number of significant digit we want to keep
+        object: str of the name of the object we want to modify (df by default)
+
+        return the attribute rounded
+        """
+        args = locals()
+        def manip(data):
+            liste = []
+            for i in data[column]:
+                if pd.isna(i):
+                    liste.append(np.nan)
+                else:
+                    liste.append(rd(i, sigfigs = sigfigs))
+            data[f'{column}_ro'] = liste
+            return data
+        if object == 'df':
+            self.df =  manip(self.df)
+        elif object == 'df_norm':
+            for dic in self.df_norm:
+                dic['df'] = manip(dic['df'])
+        else:
+            raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
+        self.labbook.add_entry(self.round_data, args)
+
+    def combine(self, other, common, col1, col2):
+        """Bind two columns of different dataframes according to a common column
+
+        other: dataframe to combine with
+        common: str of the name of the column to combine on
+        col1: str of the name of the column to combine for the first dataframe (self)
+        col2: str of the name of the column to combine for the second dataframe (other)
+
+        return the new dataframe
+        """
+        combine_df = pd.DataFrame({col2: other.df[col2].to_list(), col1: [np.nan for _ in range(other.df.shape[0])]}, index=other.df[common])
+        datesirr = self.df[common].to_list()
+        n, rows = 0, len(datesirr)
+        for i, date in enumerate(datesirr):
+            combine_df.loc[date, col1] = self.df.loc[self.df[common] == date, col1].values
+            if (i+1) >= rows*n/20:
+                print((i+1)/rows*100)
+                n +=1
+        return combine_df
 
     def norm_max(self, column):
         """Normalize irradiance data according to the max value of the data
@@ -770,6 +653,21 @@ class SnowData:
             raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
         self.labbook.add_entry(self.denoise_med, args, 'denoise')
 
+    def remove_saturation(self, column):
+        """Change to 'NaN' values the saturated one (max) of the attribute df
+        
+        column: str of the name of the column we want to correct
+
+        return the dataframe df with the new column unsaturated
+        """
+        args = locals()
+        self.df[f'{column}_uns'] = self.df[column]
+        data  = self.df.loc[round(self.df[f'{column}_uns'], 2) == round(max(self.df[f'{column}_uns']), 2), f'{column}_uns']
+        if data.shape[0] >= 2:
+            self.df.loc[round(self.df[f'{column}_uns'], 2) == round(max(self.df[f'{column}_uns']), 2), f'{column}_uns'] = np.nan
+        self.labbook.add_entry(self.remove_saturation, args)
+        return self.df
+
     def check_symmetry(self, y='irr_ro_uns', days=None):
         """Calculate the mean of sknewness of the column 'irr' of df for the specified days
 
@@ -863,68 +761,244 @@ class SnowData:
         self.labbook.add_entry(self.correct_data, args)
         return self.df
 
-    def remove_saturation(self, column):
-        """Change to 'NaN' values the saturated one (max) of the attribute df
-        
-        column: str of the name of the column we want to correct
+    def find_gaps(self, column='date', gap=300):
+        """ Regroupe the values of the attribute df according to the gap between the values of the column selected
 
-        return the dataframe df with the new column unsaturated
+        column: str of the name of the column we want to use to find the gaps (date by default)
+        gap: float of the maximum gap between 2 values to consider them as belonging to the same group (90 by default)
+
+        return a list of dataframes, each one corresponding to a group of values
         """
-        args = locals()
-        self.df[f'{column}_uns'] = self.df[column]
-        data  = self.df.loc[round(self.df[f'{column}_uns'], 2) == round(max(self.df[f'{column}_uns']), 2), f'{column}_uns']
-        if data.shape[0] >= 2:
-            self.df.loc[round(self.df[f'{column}_uns'], 2) == round(max(self.df[f'{column}_uns']), 2), f'{column}_uns'] = np.nan
-        self.labbook.add_entry(self.remove_saturation, args)
+        self.dfs = []
+        date0 = date1 = self.df[column][0]
+        for date2 in self.df[column][1:]:
+            if (date2-date1).total_seconds() >= gap and date2.day == date1.day:
+                self.dfs.append(self.df.loc[(self.df[column] >= date0) & (self.df[column] < date2)])
+                date0 = self.df.loc[self.df[column] < date2][column].iloc[-1]
+            date1 = date2
+
+        return self.dfs
+
+    def correct_timestamp(self, column='date'):
+        """Correct the timestamp of the values of the attribute df according to the gaps found by the method find_gaps.
+        More precisely, it redistributes the time between the first and the last value of each group of values according
+        to the number of values in the group.
+
+        column: str of the name of the column we want to use to find the gaps (date by default)
+
+        return the modified df
+        """
+        for df in self.dfs:
+            if df[column].iloc[-1].day == df[column].iloc[0].day:
+                delta_t = (df[column].iloc[-1]-df[column].iloc[0])
+                delta = delta_t/(df.shape[0]-1)
+                i=1
+                for date in df[column][1:-1]:
+                    new_date = df[column].iloc[0]+delta*i
+                    i+=1
+                    df.loc[df[column] == date, column] = new_date
+                df[column] = df[column].dt.round('1s')
+                self.df.update(df)
+            else:
+                date1 = df[column].iloc[-1].to_pydatetime()
+                date0 = df[column].iloc[0].to_pydatetime()
+                delta_t = (dt.datetime(2021, 3, date0.day, 18)-date0)+(date1-dt.datetime(2021, 3, date1.day, 8))
+                delta = delta_t/(df.shape[0]-1)
+                i=1
+                night_passed = False if date0.hour < 18 else True
+                for date in df[column][1:-1]:
+                    if date.hour == 8:
+                        night_passed = True 
+                    if night_passed:
+                        new_date = date0+delta*i+pd.Timedelta(hours=14)
+                    else:
+                        new_date = date0+delta*i 
+                    i+=1
+                    df.loc[df[column] == date, column] = new_date
+                df[column] = df[column].dt.round('1s')
+                self.df.update(df)
         return self.df
 
-    def round_data(self, column, sigfigs=3, object='df'):
-        """Round a specific column of a dataframe to a specific number of significant figures
-        
-        column: str of the name of the column we want to round
-        sigfigs: int of the number of significant digit we want to keep
-        object: str of the name of the object we want to modify (df by default)
+    def fit_exp(self, x='height_moved', y='irr'):
+        """Fit of an exponential function on the attribute df and save it in the attribute fit
 
-        return the attribute rounded
+        x: indepedent variable ('height_moved' by default)
+        y: dependant variable ('irr' by default)
+
+        return the 2 parameters of the fit (y(log)=mx+b)
+        """
+        self.fit = pd.DataFrame({x: self.df[x], y: self.df[y]}).sort_values(by=x)
+        def fitfunction(x, m, b):
+            return m*x+b
+        self.fit[y] = np.log(self.fit[y])
+        self.fit.replace([np.inf, -np.inf], np.nan, inplace=True)
+        self.fit = self.fit.dropna()
+        parameters, covariance = curve_fit(fitfunction, self.fit[x], self.fit[y])
+        r = r2_score(self.fit[y], fitfunction(self.fit[x], *parameters))
+        args = locals()
+        x_pred = pd.DataFrame({x:list(i for i in np.arange(0.5*round(min(self.fit[x])/0.5), 0.5*round(max(self.fit[x])/0.5)+0.5, 0.5))})
+        y_pred = np.exp(fitfunction(x_pred, *parameters)).rename(columns={x:f'irr_pred'})
+        self.fit = pd.concat([x_pred, y_pred], axis=1)
+        args['type'] = 'decrease exponential'
+        self.labbook.add_entry(self.fit_exp, args, 'fit')
+        return parameters, r
+
+    def poly_fit(self, other, x='date', y='height_moved', split_date=True):
+        """Fit a 3rd degree polynomial function on the attribute df and save it in the attribute fit
+
+        x: indepedent variable ('date' by default)
+        y: dependant variable ('height_moved' by default)
+        split_date: bool to determine if we want to split the data according to the date (Yes/True by default)
+
+        return the attribute fit
         """
         args = locals()
-        def manip(data):
-            liste = []
-            for i in data[column]:
-                if pd.isna(i):
-                    liste.append(np.nan)
-                else:
-                    liste.append(rd(i, sigfigs = sigfigs))
-            data[f'{column}_ro'] = liste
-            return data
-        if object == 'df':
-            self.df =  manip(self.df)
-        elif object == 'df_norm':
-            for dic in self.df_norm:
-                dic['df'] = manip(dic['df'])
+        args['type'] = 'polynomial-3'
+        if self.date_num is None or self.date_num[x].equals(self.df[x]) is False:
+            raise ValueError('self.date_num is not accurate')
+        self.df.reset_index(inplace = True, drop = True)
+        self.fit = pd.DataFrame({x: self.date_num['date_num'], y: self.df[y], 'day': self.date_num['day'], 'hour': self.date_num['hour']}).sort_values(by=x)
+        days = []
+        df_fit = pd.DataFrame()
+        if split_date:
+            for day in self.fit['day']:
+                if day in days:
+                    continue
+                df = self.fit.loc[(self.fit['day'] == day) & (self.fit['hour'] >= 7) & (self.fit['hour'] <= 20)]
+                dates = other.date_num.loc[other.date_num['day'] == day]
+                poly = np.polyfit(df[x], df[y], 3)
+                fct = np.poly1d(poly)
+                df_fit = pd.concat([df_fit, pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})], axis=0)
+                days.append(day)
         else:
-            raise NotImplementedError(f'the method with the attribute {object} is not implemented yet')
-        self.labbook.add_entry(self.round_data, args)
+            df = self.fit.loc[(self.fit['hour'] >= 7) & (self.fit['hour'] <= 20)]
+            dates = other.date_num
+            poly = np.polyfit(df[x], df[y], 3)
+            fct = np.poly1d(poly)
+            df_fit = pd.DataFrame({x: dates[x], y: fct(dates['date_num'])})
+        self.fit = df_fit
+        args['parameters'] = poly
+        self.labbook.add_entry(self.poly_fit, args, 'fit')
+        return self.fit
 
-    def combine(self, other, common, col1, col2):
-        """Bind two columns of different dataframes according to a common column
-
-        other: dataframe to combine with
-        common: str of the name of the column to combine on
-        col1: str of the name of the column to combine for the first dataframe (self)
-        col2: str of the name of the column to combine for the second dataframe (other)
-
-        return the new dataframe
+    def rectify_data(self, x='irr', y='date', north=0, east=0, diffuse=None):
+        """Rectify the data according to the diffusion throughout the day
+        
+        x: str of the column in the dataframe representing the independent variable ('irr' by default)
+        y: str of the column in the dataframe representing the dependent variable ('date' by default)
+        north: float of the north shift on the sensor, or south if negative (0 by default)
+        east: float of the east shift on the sensor, or west if negative (0 by default)
+        diffuse: dict of the days and boolean of their diffusion (None by default). If None, the diffusion
+        is determined from the dataframe with the column 'sun level' (True for the days with sun level >= 3
+        and False for the others)
+        
+        return the corrected dataframe df
         """
-        combine_df = pd.DataFrame({col2: other.df[col2].to_list(), col1: [np.nan for _ in range(other.df.shape[0])]}, index=other.df[common])
-        datesirr = self.df[common].to_list()
-        n, rows = 0, len(datesirr)
-        for i, date in enumerate(datesirr):
-            combine_df.loc[date, col1] = self.df.loc[self.df[common] == date, col1].values
-            if (i+1) >= rows*n/20:
-                print((i+1)/rows*100)
-                n +=1
-        return combine_df
+        args = locals()
+        c = corrector()
+        days, default_diffuse = [], {}
+        df_corr = pd.DataFrame()
+        self.df['day'] = [date.date() for date in self.df['date']]
+        self.df['day'] = self.df['day'].astype(str)
+        for day in self.df['day']:
+            if day in days:
+                continue
+            df = self.df.loc[self.df['day'] == day]
+            if diffuse is None:
+                difbool = False if df['sun level'].iloc[0] >= 3 else True
+                default_diffuse[day] = difbool
+            else:
+                difbool = diffuse[day]
+            correctedData = c.correctData(df[x].tolist(), df[y].values.astype('datetime64[s]').tolist(), diffuse=difbool, northShift=north, eastShift=east)
+            df_corr = pd.concat([df_corr, pd.DataFrame({y: df[y], x: correctedData})], axis=0)
+            days.append(day)
+        self.df[x], self.df[y] = df_corr[x], df_corr[y]
+        diffuse = default_diffuse if diffuse is None else diffuse
+        args['diffuse'] = diffuse
+        self.labbook.add_entry(self.rectify_data, args)
+        return self.df
+
+    def remove_highangles(self, x='date', max_angle=60): 
+        """Remove the data with high angles
+        
+        x: str of the column of the dates ('date' by default)
+        max_angle: maximum angle of the sun accepted (60 by default)
+        
+        return the corrected dataframe df
+        """
+        args = locals()
+        df = self.df
+        for date in df[x].values.astype('datetime64[s]').tolist():
+            if getZenith(date) >= max_angle:
+                self.df = self.df.drop(self.df[self.df[x] == date].index)
+        self.labbook.add_entry(self.remove_highangles, args)
+        return self.df
+
+    def get_angles(self):
+        """Compute the zenith angles of the sun and add them to the dataframe df
+        
+        return the dataframe df
+        """
+        self.df['zenith angle'] = [getZenith(date) for date in self.df['date'].values.astype('datetime64[s]').tolist()]
+        return self.df
+
+    def correct_accordingtoalbedo(self, soot_value=1000e-9):
+        """Correct the irradiance according to the albedo of the snow
+
+        return the corrected dataframe df
+        """
+        ssa = [12, 17, 6]
+        density = [380,380, 380]
+        thickness = [0.05,0.05, 0.9] # On suppose que le capteur est enfoui environ 30 cm sous la neige
+        args = locals()
+        soot= [soot_value, soot_value, soot_value]  # 1000 ng/g
+        wavelengths = 400*1e-9  # Longueur d'onde du filtre utilisé
+        
+        self.get_angles()
+        # self.df = self.df.loc[self.df['zenith angle'] <= 90]
+        albedo_3layers = []
+        albedo_3layers.append(tartes.albedo(wavelengths, ssa, density, thickness, dir_frac=1, sza=0, impurities=soot))
+        for i in self.df['zenith angle']:
+            albedo_3layers.append(tartes.albedo(wavelengths, ssa, density, thickness, dir_frac=1, sza=i, impurities=soot))
+        transmit_1 = [1-i for i in albedo_3layers]
+        transmit = [i+(1-max(transmit_1)) for i in transmit_1]
+        transmit = transmit[1:]
+        irr_corrected = []
+        for x, irr in enumerate(self.df['irr']):
+            irr_corrected.append(irr * transmit[x])
+        self.df['irr'] = irr_corrected
+        self.labbook.add_entry(self.correct_accordingtoalbedo, args)
+        return self.df
+
+    def simul_irradiance(self):
+        """Simulate the irradiance with the model of Tartes for five different soot concentrations
+
+        show the plot of the simulated irradiance
+        """
+        data = pd.DataFrame()
+
+        # semi-infinite medium
+        ssa = [12, 17, 6]       # in m^2/kg
+        density = [380, 380, 380]  # in kg/m^3
+        thickness = [0.05, 0.05, 0.9]  # in m
+
+        # depth at which the calculation is performed (in m)
+        z = arange(8, 26, 0.1)*1e-2  # from 8 to 25cm depth every 1cm
+
+        wavelength = [400e-9]  # in m
+        soots = [20e-9, 100e-9, 500e-9, 1000e-9, 2500e-9 ]
+        for soot in soots:
+            down_irr_profile, up_irr_profile = tartes.irradiance_profiles(
+                wavelength, z, ssa, density, thickness, impurities=soot, sza=57)
+            #semilogx(down_irr_profile, -z, label='soot %g ' % (soot*1e9))
+            data['soot %g' % (soot*1e9)] = down_irr_profile
+
+        data.index = z
+        return data
+        # xlabel('depth (m)')
+        # ylabel('irradiance (W/m^2)')
+        # legend(loc='best')
+        # show()
 
 class LabBook:
     """Keep track of the different steps of the data analysis
@@ -988,7 +1062,7 @@ class LabBook:
 
         return the properties of the method
         """
-        for key in ['self', 'df', 'df_norm', 'fit', 'covariance', 'df_fit', 'other', 'object', 'fitfunction']:
+        for key in ['self', 'df', 'df_norm', 'covariance', 'df_fit', 'other', 'object', 'fitfunction']:
             try:
                 del args[key]
             except:
@@ -1117,4 +1191,5 @@ class LabBook:
                     self.add_method(method, features)
 
 if __name__ == "__main__":
+    
     pass

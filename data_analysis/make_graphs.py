@@ -145,10 +145,11 @@ def sixgraphs(traces, logs=[1, 0, 0, 0, 0, 0], title=None):
     fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
     return fig
 
-class Graphs_Snowdata(SnowData):
-    def __init__(self, shift):
+class Graphs_Snowdata():
+    def __init__(self, shift, soot_value):
         self.list_sensors = []
         self.shift = shift
+        self.soot = soot_value
 
     def graph_dailydata(self, days):
         """Make a graph of all the relevant features of (a) certain day(s)
@@ -203,6 +204,12 @@ class Graphs_Snowdata(SnowData):
         fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
         axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
         titles = {}
+
+        test = SnowData(from_database=True, relevant=False)
+        data = test.simul_irradiance()
+        for column in data.columns:
+            fig.add_trace(go.Scatter(x=data.index*100, y=data[column], name=column), row=1, col=1)
+
         for i, trace in enumerate(traces):
             if i % 2 == 0:
                 col=1
@@ -295,8 +302,6 @@ class Graphs_Snowdata(SnowData):
         days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
             (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
         x: str of the name of the column we want to use as x axis (default: 'height_moved')
-        shift: list of 2 int of the shift we want to apply to the reference sensor (default: [0, 0])
-            (ex. [10, 5] means we want to shift the reference sensor 10 units to the north and 5 units to the east (negative values for south and west))
 
         return a list of the traces
         """
@@ -310,7 +315,7 @@ class Graphs_Snowdata(SnowData):
         if sensor not in self.list_sensors:
             self.normalize_sensor(sensor, days, denoise=False)
             self.list_sensors.append(sensor)
-        classnorm = SnowData(f'{sensor}_g_normFrefs.csv')
+        classnorm = SnowData(f'{sensor}_g_normFrefs.csv', relevant=False if x == 'date' else True)
         classnorm.find_dates(days)
         classnorm.add_luminosity()
         classnorm.classify_dates()
@@ -319,9 +324,9 @@ class Graphs_Snowdata(SnowData):
             height.poly_fit(classnorm, split_date=True)
             classnorm.add_column(height)
             classnorm.remove_highangles()
-            trace0 = classnorm.make_fig('height_moved', 'irr_ro i0-norm_ro', f'{sensor}_normFrefs', axis=['2', '4'], color='hour-min')
-            param = classnorm.fit_exp(y='irr_ro i0-norm_ro')
-            trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'curve_fit m={param[0]:.3g}', axis=['2', '4'], mode='lines', color='red')
+            trace0 = classnorm.make_fig('height_moved', 'irr_ro i0-norm_ro', f'{sensor}_normFrefs', axis=['2', '4'], color='zenith angle')
+            param, r = classnorm.fit_exp(y='irr_ro i0-norm_ro')
+            trace01 = classnorm.make_fig('height_moved', 'irr_pred', f'm={param[0]:.3g}\n R^2={r:.4g}', axis=['2', '4'], mode='lines', color='red')
             return [trace0, trace01]
         elif x == 'date':
             classnorm.remove_highangles()
@@ -342,6 +347,7 @@ class Graphs_Snowdata(SnowData):
 
         cap = SnowData(f'{sensor}_g.csv', name=sensor)
         ref = SnowData('400Frefs_g.csv', name='400Frefs', relevant=False)
+        cap.correct_accordingtoalbedo(soot_value=self.soot)
         cap.round_data('irr')
         ref.round_data('irr')
         ref.add_luminosity()
@@ -352,18 +358,21 @@ class Graphs_Snowdata(SnowData):
             cap.denoise_med('irr_ro i0-norm_ro')
         cap.save(f'{sensor}_g', object='df_norm')
 
-def final_graph(days, name=None, shift=[0, 0]):
+def final_graph(days, name=None, shift=[0, 0], soot=1000e-9):
     """Make the final graph with all the traces
     
     days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
         (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
-    name: str of the name of the file we want to save the graph (dailydata-"days".html by default)
+    name: str of the name of the file we want to save the graph (dailydata-"days".html by default
+    shift: list of 2 int of the shift we want to apply to the reference sensor (default: [0, 0])
+        (ex. [10, 5] means we want to shift the reference sensor 10 units to the north and 5 units to the east (negative values for south and west))
+    soot: float of the soot concentration (default: 1000e-9)
     
     save all the traces in a graph and open it"""
-    param = Graphs_Snowdata(shift=shift)
-    fig1 = param.graph_dailydata(days)
+    param = Graphs_Snowdata(shift=shift, soot_value=soot)
+    #fig1 = param.graph_dailydata(days)
     fig2 = param.graphs_sensors_height(days)
-    fig3 = param.graphs_sensors_date(days)
+    #fig3 = param.graphs_sensors_date(days)
     l = [dt.datetime.strptime(day, '%Y-%m-%d') for day in days]
     l = [(day-min(l)).days for day in l]
     if name is None:
@@ -382,9 +391,9 @@ def final_graph(days, name=None, shift=[0, 0]):
     if os.path.exists(name):
         os.remove(name)
     with open(name, 'a') as f:
-        f.write(fig1.to_html(full_html=False, include_plotlyjs='cdn'))
+        #f.write(fig1.to_html(full_html=False, include_plotlyjs='cdn'))
         f.write(fig2.to_html(full_html=False, include_plotlyjs='cdn'))
-        f.write(fig3.to_html(full_html=False, include_plotlyjs='cdn'))
+        #f.write(fig3.to_html(full_html=False, include_plotlyjs='cdn'))
     
     new = 2 # open in a new tab, if possible
     url = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage I\\Data\\' + name
@@ -404,5 +413,5 @@ cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J')] # , ('1200', 'L
 # show and save figure
 days = ['2021-03-20', '2021-03-21', '2021-03-22', '2021-03-23']
 # print(final_graph(days))
-print(final_graph(days, 'test.html'))
+print(final_graph(days, 'test.html', soot=1000e-9))
 

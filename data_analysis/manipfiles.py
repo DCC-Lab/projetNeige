@@ -3,13 +3,16 @@ import os
 import warnings
 from datetime import datetime as dt
 from datetime import timedelta as td
-
 import numpy as np
 import pandas as pd
 import scipy.signal as ss
+import snowoptics
+import tartes
+from pylab import *
 from scipy.optimize import curve_fit
 from sigfig import round as rd
 from sklearn.metrics import r2_score
+from tartes.impurities import Soot
 
 warnings.filterwarnings('ignore', category=UserWarning, module='sigfig')
 
@@ -128,7 +131,7 @@ def renamefiles_offolder(modify, path=None):
     path: str of the path of the folder
     """
     if path is None:
-        path = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage\\Data\\Rename_env\\'
+        path = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage I\\Data\\Rename_env\\'
     for oldname in os.listdir(path):
         historic = {}
         newname = oldname
@@ -187,11 +190,12 @@ def add_id(path, name_id, id):
     df.to_csv(path, index=False)
     return df
 
-def stripcolumns(path, columns):
+def stripcolumns(path, columns, newname=False):
     """Delete columns of the file chosen
     
     path: str of the path of the file
     columns: list of the name of the columns we want to delete
+    newname: str of the name of the dataframe saved (if False, the original file is updated)
 
     return the dataframe and update the csv
     """
@@ -201,7 +205,10 @@ def stripcolumns(path, columns):
             df.pop(col)
         except KeyError:
             pass
-    df.to_csv(path, index=False)
+    if newname:
+        df.to_csv(f'{newname}.csv', index=False)
+    else:
+        df.to_csv(path, index=False)
     return df
 
 def modify_data(path, column, scale, modification, newname):
@@ -518,7 +525,6 @@ def many_refs(paths, newname, columns=['date', 'irr']):
     data.to_csv(f'{newname}.csv', index=None)
     return data
 
-
 # Denoise fonctions
 def denoise_but(path, column, filter=0.1):
     """Denoise by a filter a column of a certain csv file
@@ -704,6 +710,23 @@ def check_symmetry(path, ids_day=None):
     res = df.loc[df['id-day'] == b]['irr_ro_uns'].skew(axis=0, skipna=True)
     sum, days = res+sum, days+1
     return sum/days
+
+def get_angles(path):
+    """Calculate the zenith and azimuth angle for each date of a csv file and add the results in the file
+
+    path: str of the path of the file
+
+    return the dataframe
+    """
+
+    df = pd.read_csv(path, parse_dates=['date'])
+    lon, lat = -71.137, 47.335
+    time = df['date']
+    sza, saa = snowoptics.compute_sun_position(lon, lat, time)
+    df['zenith angle'] = sza*360/(2*np.pi)
+    df['azimuth angle'] = saa*360/(2*np.pi)
+    df.to_csv(path, index=False)
+    return df
 
 # Correct raw data
 def dates_problem(path, column):
@@ -1092,5 +1115,5 @@ path1 = 'C:\\Users\\Proprio\\OneDrive\Images\\Pellicule'
 cols = [('325', 'B,C'), ('485', 'D,E'), ('650', 'F,G'), ('1000', 'J,K'), ('1200', 'L,M'), ('1375', 'N,O')] #, ('1500', 'P,Q')
 
 if __name__ == "__main__":
-    
+    renamefiles_offolder([('400_325_g', 0)])
     pass
