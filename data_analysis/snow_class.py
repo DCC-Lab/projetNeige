@@ -57,9 +57,8 @@ class SnowData:
         if from_database:
             # self.db = NeigeDB()
             # self.df = self.db.getvaluesfromtable(table, columns, has_dates)
-            # self.name = name
             # raise NotImplementedError('the method from_database is not implemented yet')
-            self.name = "None"
+            self.name = name
             pass
         else:
             if has_dates:
@@ -69,7 +68,7 @@ class SnowData:
             self.name = os.path.splitext(os.path.basename(path))[0] if name is None else name
         self.fit, self.trace, self.date_num= None, None, None
         self.dates_tocorrect, self.df_norm, self.labbook  = [], [], LabBook(self.name, relevant)
-    
+
     def display(self, object='df'):
         """Print all of the dataframe specified
 
@@ -762,7 +761,7 @@ class SnowData:
         return self.df
 
     def find_gaps(self, column='date', gap=300):
-        """ Regroupe the values of the attribute df according to the gap between the values of the column selected
+        """ Regroup the values of the attribute df according to the gap between the values of the column selected
 
         column: str of the name of the column we want to use to find the gaps (date by default)
         gap: float of the maximum gap between 2 values to consider them as belonging to the same group (90 by default)
@@ -942,14 +941,17 @@ class SnowData:
         self.df['zenith angle'] = [getZenith(date) for date in self.df['date'].values.astype('datetime64[s]').tolist()]
         return self.df
 
-    def correct_accordingtoalbedo(self, soot_value=1000e-9):
+    def correct_accordingtoalbedo(self, soot_value=100e-9, field = True):
         """Correct the irradiance according to the albedo of the snow
 
         return the corrected dataframe df
         """
-        ssa = [12, 17, 6]
+        if field:
+            ssa = [8, 12, 3.5]       # in m^2/kg
+        else:
+            ssa = [13, 18, 9]       # in m^2/kg
         density = [380,380, 380]
-        thickness = [0.05,0.05, 0.9] # On suppose que le capteur est enfoui environ 30 cm sous la neige
+        thickness = [0.05,0.05, 1] # On suppose que le capteur est enfoui environ 30 cm sous la neige
         args = locals()
         soot= [soot_value, soot_value, soot_value]  # 1000 ng/g
         wavelengths = 400*1e-9  # Longueur d'onde du filtre utilisé
@@ -970,35 +972,32 @@ class SnowData:
         self.labbook.add_entry(self.correct_accordingtoalbedo, args)
         return self.df
 
-    def simul_irradiance(self):
+    def simul_irradiance(self, ssa, thick1, soot1, soot23, name):
         """Simulate the irradiance with the model of Tartes for five different soot concentrations
 
         show the plot of the simulated irradiance
         """
+        density = [380, 380, 380]   # in kg/m^3
+        thickness = [thick1, 0.05, 1]  # in m
+        soots = [[soot1, soot23, soot23]] #, 50e-9, 100e-9, 150e-9, 200e-9
+        wavelength = [400e-9]  # in m        
+        args = locals()
+
         data = pd.DataFrame()
 
-        # semi-infinite medium
-        ssa = [12, 17, 6]       # in m^2/kg
-        density = [380, 380, 380]  # in kg/m^3
-        thickness = [0.05, 0.05, 0.9]  # in m
+        z = arange(0, 26, 0.1)*1e-2
+        x = ssa     # in m^2/kg
 
-        # depth at which the calculation is performed (in m)
-        z = arange(8, 26, 0.1)*1e-2  # from 8 to 25cm depth every 1cm
-
-        wavelength = [400e-9]  # in m
-        soots = [20e-9, 100e-9, 500e-9, 1000e-9, 2500e-9 ]
+        ssa = [x, x, x]
         for soot in soots:
             down_irr_profile, up_irr_profile = tartes.irradiance_profiles(
                 wavelength, z, ssa, density, thickness, impurities=soot, sza=57)
             #semilogx(down_irr_profile, -z, label='soot %g ' % (soot*1e9))
-            data['soot %g' % (soot*1e9)] = down_irr_profile
+            data[name] = down_irr_profile #'soot %g' % (soot*1e9)
 
         data.index = z
+        self.labbook.add_entry(self.simul_irradiance, args)
         return data
-        # xlabel('depth (m)')
-        # ylabel('irradiance (W/m^2)')
-        # legend(loc='best')
-        # show()
 
 class LabBook:
     """Keep track of the different steps of the data analysis

@@ -146,10 +146,13 @@ def sixgraphs(traces, logs=[1, 0, 0, 0, 0, 0], title=None):
     return fig
 
 class Graphs_Snowdata():
-    def __init__(self, shift, soot_value):
+    def __init__(self, shift, soot_value, param_simuls):
         self.list_sensors = []
         self.shift = shift
         self.soot = soot_value
+        self.param = param_simuls
+        self.raw = pd.DataFrame()
+        self.corr = pd.DataFrame()
 
     def graph_dailydata(self, days):
         """Make a graph of all the relevant features of (a) certain day(s)
@@ -202,13 +205,26 @@ class Graphs_Snowdata():
             raise ValueError('The number of traces is not even')
         specs = [[{"secondary_y": True}, {"secondary_y": True}] for _ in range(len(traces)//2)]
         fig = make_subplots(rows=len(traces)//2, cols=2, specs=specs, subplot_titles=tuple(str(i) for i in range(len(traces))))
-        axis = {'x': 'date', '2': 'height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
+        axis = {'x': 'date', '2': 'Height (cm)', '3': 'irradiance', '4':'irradiance_norm'}
         titles = {}
+        color_scale = px.colors.sequential.solar
 
-        test = SnowData(from_database=True, relevant=False)
-        data = test.simul_irradiance()
-        for column in data.columns:
-            fig.add_trace(go.Scatter(x=data.index*100, y=data[column], name=column), row=1, col=1)
+        # Ajoutez les courbes de simulation
+        test = SnowData(from_database=True, name="simuls12")
+        df1 = test.simul_irradiance(self.param[0][0], self.param[0][1], self.param[0][2], self.param[0][3], name="20 F")
+        df2 = test.simul_irradiance(self.param[1][0], self.param[1][1], self.param[1][2], self.param[1][3], name="21 F")
+        df3 = test.simul_irradiance(self.param[2][0], self.param[2][1], self.param[2][2], self.param[2][3], name="22 F")
+        df4 = test.simul_irradiance(self.param[3][0], self.param[3][1], self.param[3][2], self.param[3][3], name="23 F")
+        
+        data = pd.concat([df1, df2, df3, df4], axis=1)
+        for i, column in enumerate(data.columns):
+            color_index = int(((int(column.split()[0])-19) / 5) * (len(color_scale) - 1))
+            color = color_scale[color_index]
+            name = f"{column}: {self.param[i][0]}, {self.param[i][1]}, {self.param[i][2]}, {self.param[i][3]}"
+            fig.add_trace(go.Scatter(x=data.index*100, y=data[column], name=name,
+                hovertemplate=name, line=dict(color=color, dash='dash')), row=1, col=1)
+                
+            #fig.add_trace(go.Scatter(x=dataS.index*100, y=dataS[column], name=column, line=dict(color=color, dash='dash'), showlegend=False), row=1, col=2)
 
         for i, trace in enumerate(traces):
             if i % 2 == 0:
@@ -218,11 +234,19 @@ class Graphs_Snowdata():
             row = int((-col+3+i)/2)
             for tra in trace:
                 fig.add_trace(tra, row=row, col=col)
-            fig.update_yaxes(title_text=axis[trace[0]['yaxis'][1]], type='log', row=row, col=col)
-            fig.update_xaxes(title_text=(axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']), row=row, col=col)
+            fig.update_yaxes(title_text="Irradiance [W/m^2]", type='log', row=row, col=col) #axis[trace[0]['yaxis'][1]]
+            fig.update_xaxes(title_text=("Snow height above optical sensor [cm]"), row=row, col=col) #axis[trace[0]['xaxis'][1]] if trace[0]['xaxis'] != 'x' else axis['x']
             titles[i] = trace[0]['name']
         fig.for_each_annotation(lambda a: a.update(text = titles[int(a.text)]))
         fig.update_layout(template='simple_white', title=f'Irradiance normalized according to the snow height over the sensors on {days}')
+
+        # Ajoutez rectangle
+        fig.add_trace(go.Scatter(x=[26, 26], y=[0, 0.5], mode='lines', name=None, line=dict(color='black', width=1), showlegend=False), row=1, col=1)
+        fig.add_trace(go.Scatter(x=[8, 26], y=[0.5, 0.5], mode='lines', name=None, line=dict(color='black', width=1), showlegend=False), row=1, col=1)
+        fig.add_trace(go.Scatter(x=[26, 26], y=[0, 0.5], mode='lines', name=None, line=dict(color='black', width=1), showlegend=False), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[8, 26], y=[0.5, 0.5], mode='lines', name=None, line=dict(color='black', width=1), showlegend=False), row=1, col=2)
+        fig.for_each_xaxis(lambda axis: axis.update(range=[8, 26], ticks='inside', linewidth=1, tickfont=dict(size=20), title_font=dict(size=25)))
+        fig.for_each_yaxis(lambda axis: axis.update(range = [-2.4, -0.3], ticks='inside', linewidth=1, tickfont=dict(size=20), title_font=dict(size=25)))
         fig.update_traces(marker=dict(line=dict(width=0.2, color='black')), selector=dict(mode='markers'))
         return fig
 
@@ -300,7 +324,7 @@ class Graphs_Snowdata():
         
         sensor: str of the name of the sensor (ex. '400F325')
         days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
-            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7 a.m. on March 11 2021)
+            (ex. ['2021-01', '2021-03-11 07:'] represent all the values from January 2021 and those taken the hour following 7:00 a.m. on March 11 2021)
         x: str of the name of the column we want to use as x axis (default: 'height_moved')
 
         return a list of the traces
@@ -346,19 +370,40 @@ class Graphs_Snowdata():
         """
 
         cap = SnowData(f'{sensor}_g.csv', name=sensor)
-        ref = SnowData('400Frefs_g.csv', name='400Frefs', relevant=False)
-        cap.correct_accordingtoalbedo(soot_value=self.soot)
+        ref = SnowData('400Frefs_g.csv', name='400Frefs')
+        cap.find_dates(days)
+        ref.find_dates(days)
+        self.raw = pd.concat([self.raw, ref.df], axis=0)
+        if sensor == "400F325": 
+            field = True
+        else:
+            field = False
+        cap.correct_accordingtoalbedo(soot_value=self.soot, field=field)
         cap.round_data('irr')
         ref.round_data('irr')
         ref.add_luminosity()
-        ref.rectify_data(x='irr_ro', north=self.shift[0], east=self.shift[1])
+        ref.df = ref.rectify_data(x='irr_ro', north=self.shift[0], east=self.shift[1])
+        self.corr = pd.concat([self.corr, ref.df], axis=0)
         cap.norm_i0(ref, 'irr_ro')
         cap.round_data('irr_ro i0-norm', object='df_norm')
         if denoise:
             cap.denoise_med('irr_ro i0-norm_ro')
         cap.save(f'{sensor}_g', object='df_norm')
 
-def final_graph(days, name=None, shift=[0, 0], soot=1000e-9):
+    def make_refgraph(self):
+        fig = make_subplots(1, 1)
+        self.raw["irr_1"] = self.raw["irr"]/max(self.raw["irr"])
+        self.corr["irr_1"] = self.corr["irr_ro"]/max(self.corr["irr_ro"])
+        cnr4 = SnowData('ISWR-strip.csv', relevant=False)
+        cnr4.find_dates(days)
+        cnr4.df["irr_1"] = cnr4.df["irr"]/max(cnr4.df["irr"])
+        fig.add_trace(go.Scatter(x = cnr4.df["date"], y = cnr4.df["irr_1"], mode="markers", marker=dict(line=dict(width=0.2, color='black'), color = "blue", size=3), name="CNR4"))
+        fig.add_trace(go.Scatter(x = self.raw["date"], y = self.raw["irr_1"], mode="markers", marker=dict(line=dict(width=0.2, color='black'), color = "grey", size=3), name="Raw"))
+        fig.add_trace(go.Scatter(x = self.corr["date"], y = self.corr["irr_1"], mode="markers", marker=dict(line=dict(width=0.2, color='black'), color = "red", size=3), name ="Corrected"))
+        fig.update_layout(template='simple_white')
+        return fig
+
+def final_graph(name, param_simuls, soot=100e-9, shift=[-8, 0], days= ['2021-03-20', '2021-03-21', '2021-03-22', "2021-03-23"]):
     """Make the final graph with all the traces
     
     days: list of string of the dates we want to keep (string format: '%Y-%m-%d %H:%M:%S')
@@ -369,9 +414,11 @@ def final_graph(days, name=None, shift=[0, 0], soot=1000e-9):
     soot: float of the soot concentration (default: 1000e-9)
     
     save all the traces in a graph and open it"""
-    param = Graphs_Snowdata(shift=shift, soot_value=soot)
+    param = Graphs_Snowdata(shift=shift, soot_value=soot, param_simuls=param_simuls)
     #fig1 = param.graph_dailydata(days)
     fig2 = param.graphs_sensors_height(days)
+    #fig2 = param.make_refgraph()
+    #fig2.show()
     #fig3 = param.graphs_sensors_date(days)
     l = [dt.datetime.strptime(day, '%Y-%m-%d') for day in days]
     l = [(day-min(l)).days for day in l]
@@ -387,9 +434,14 @@ def final_graph(days, name=None, shift=[0, 0], soot=1000e-9):
             d1 = days[0].replace('2021-', '')
             d2 = days[-1].replace('2021-', '')
             name = f'dailydata-{d1}and{d2}.html'
-    
-    if os.path.exists(name):
-        os.remove(name)
+    #save fig in pdf
+    # fig2.update_layout(
+    # width=800,  # Définissez la largeur souhaitée en pixels
+    # height=600  # Définissez la hauteur souhaitée en pixels
+    # )
+    # fig2.write_image(f'{name[:-5]}.pdf', format='pdf', scale=5)
+    #if os.path.exists(name):
+    #    os.remove(name)
     with open(name, 'a') as f:
         #f.write(fig1.to_html(full_html=False, include_plotlyjs='cdn'))
         f.write(fig2.to_html(full_html=False, include_plotlyjs='cdn'))
@@ -411,7 +463,9 @@ arr = np.array([[0, 5, 10, 15, 20, 25, 30],
 cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J')] # , ('1200', 'L'), ('1375', 'N'), ('1500', 'P')
 
 # show and save figure
-days = ['2021-03-20', '2021-03-21', '2021-03-22', '2021-03-23']
+days = ['2021-03-20', '2021-03-21', '2021-03-22', "2021-03-23"] 
 # print(final_graph(days))
-print(final_graph(days, 'test.html', soot=1000e-9))
-
+final_graph('simuls12.html',[[10, 0.01, 1000e-9, 71e-9],  # 20
+                            [8, 0.03, 1500e-9, 45e-9],    # 21
+                            [6.5, 0.038, 2000e-9, 20e-9], # 22
+                            [4, 0.041, 3000e-9, 10e-9]])  # 23
