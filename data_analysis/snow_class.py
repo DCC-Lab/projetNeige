@@ -972,12 +972,12 @@ class SnowData:
         self.labbook.add_entry(self.correct_accordingtoalbedo, args)
         return self.df
 
-    def simul_irradiance(self, ssa, thick1, soot1, soot23, name):
+    def simul_irradiance(self, name, ssa, thick1, soot1, soot23, density=380):
         """Simulate the irradiance with the model of Tartes for five different soot concentrations
 
         show the plot of the simulated irradiance
         """
-        density = [380, 380, 380]   # in kg/m^3
+        density = [density, density, density]   # in kg/m^3
         thickness = [thick1, 0.05, 1]  # in m
         soots = [[soot1, soot23, soot23]] #, 50e-9, 100e-9, 150e-9, 200e-9
         wavelength = [400e-9]  # in m        

@@ -146,8 +146,9 @@ def sixgraphs(traces, logs=[1, 0, 0, 0, 0, 0], title=None):
     return fig
 
 class Graphs_Snowdata():
-    def __init__(self, shift, soot_value, param_simuls):
+    def __init__(self, name, shift, soot_value, param_simuls):
         self.list_sensors = []
+        self.name = name
         self.shift = shift
         self.soot = soot_value
         self.param = param_simuls
@@ -210,22 +211,30 @@ class Graphs_Snowdata():
         color_scale = px.colors.sequential.solar
 
         # Ajoutez les courbes de simulation
-        test = SnowData(from_database=True, name="simuls12")
-        df1 = test.simul_irradiance(self.param[0][0], self.param[0][1], self.param[0][2], self.param[0][3], name="20 F")
-        df2 = test.simul_irradiance(self.param[1][0], self.param[1][1], self.param[1][2], self.param[1][3], name="21 F")
-        df3 = test.simul_irradiance(self.param[2][0], self.param[2][1], self.param[2][2], self.param[2][3], name="22 F")
-        df4 = test.simul_irradiance(self.param[3][0], self.param[3][1], self.param[3][2], self.param[3][3], name="23 F")
-        
-        data = pd.concat([df1, df2, df3, df4], axis=1)
+        test = SnowData(from_database=True, name=self.name)
+        df1F = test.simul_irradiance("20 F", self.param[0][0], self.param[0][1], self.param[0][2], self.param[0][3])
+        df2F = test.simul_irradiance("21 F", self.param[1][0], self.param[1][1], self.param[1][2], self.param[1][3])
+        df3F = test.simul_irradiance("22 F", self.param[2][0], self.param[2][1], self.param[2][2], self.param[2][3])
+        df4F = test.simul_irradiance("23 F", self.param[3][0], self.param[3][1], self.param[3][2], self.param[3][3])
+        df1S = test.simul_irradiance("20 S", self.param[4][0], self.param[4][1], self.param[4][2], self.param[4][3], 320)
+        df2S = test.simul_irradiance("21 S", self.param[5][0], self.param[5][1], self.param[5][2], self.param[5][3], 320)
+        df3S = test.simul_irradiance("22 S", self.param[6][0], self.param[6][1], self.param[6][2], self.param[6][3], 320)
+        df4S = test.simul_irradiance("23 S", self.param[7][0], self.param[7][1], self.param[7][2], self.param[7][3], 320)
+
+        data = pd.concat([df1F, df2F, df3F, df4F, df1S, df2S, df3S, df4S], axis=1)
         for i, column in enumerate(data.columns):
             color_index = int(((int(column.split()[0])-19) / 5) * (len(color_scale) - 1))
             color = color_scale[color_index]
             name = f"{column}: {self.param[i][0]}, {self.param[i][1]}, {self.param[i][2]}, {self.param[i][3]}"
-            fig.add_trace(go.Scatter(x=data.index*100, y=data[column], name=name,
-                hovertemplate=name, line=dict(color=color, dash='dash')), row=1, col=1)
-                
-            #fig.add_trace(go.Scatter(x=dataS.index*100, y=dataS[column], name=column, line=dict(color=color, dash='dash'), showlegend=False), row=1, col=2)
+            if i < 4:
+                fig.add_trace(go.Scatter(x=data.index*100, y=data[column], name=name,
+                    hovertemplate=name, line=dict(color=color, dash='dash')), row=1, col=1)
+            else:
+                name += ", 320"
+                fig.add_trace(go.Scatter(x=data.index*100, y=data[column], name=name,
+                    hovertemplate=name, line=dict(color=color, dash='dash')), row=1, col=2)
 
+        # Ajoutez les courbes de données
         for i, trace in enumerate(traces):
             if i % 2 == 0:
                 col=1
@@ -414,7 +423,7 @@ def final_graph(name, param_simuls, soot=100e-9, shift=[-8, 0], days= ['2021-03-
     soot: float of the soot concentration (default: 1000e-9)
     
     save all the traces in a graph and open it"""
-    param = Graphs_Snowdata(shift=shift, soot_value=soot, param_simuls=param_simuls)
+    param = Graphs_Snowdata(name, shift=shift, soot_value=soot, param_simuls=param_simuls)
     #fig1 = param.graph_dailydata(days)
     fig2 = param.graphs_sensors_height(days)
     #fig2 = param.make_refgraph()
@@ -442,13 +451,13 @@ def final_graph(name, param_simuls, soot=100e-9, shift=[-8, 0], days= ['2021-03-
     # fig2.write_image(f'{name[:-5]}.pdf', format='pdf', scale=5)
     #if os.path.exists(name):
     #    os.remove(name)
-    with open(name, 'a') as f:
+    with open(name + ".html", 'a') as f:
         #f.write(fig1.to_html(full_html=False, include_plotlyjs='cdn'))
         f.write(fig2.to_html(full_html=False, include_plotlyjs='cdn'))
         #f.write(fig3.to_html(full_html=False, include_plotlyjs='cdn'))
     
     new = 2 # open in a new tab, if possible
-    url = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage I\\Data\\' + name
+    url = 'C:\\Users\\Proprio\\Documents\\UNI\\Stage I\\Data\\' + name + ".html"
     webbrowser.open(url,new=new)
 
 #Write info here
@@ -465,7 +474,15 @@ cols = [('325', 'B'), ('485', 'D'), ('650', 'F'), ('1000', 'J')] # , ('1200', 'L
 # show and save figure
 days = ['2021-03-20', '2021-03-21', '2021-03-22', "2021-03-23"] 
 # print(final_graph(days))
-final_graph('simuls12.html',[[10, 0.01, 1000e-9, 71e-9],  # 20
-                            [8, 0.03, 1500e-9, 45e-9],    # 21
-                            [6.5, 0.038, 2000e-9, 20e-9], # 22
-                            [4, 0.041, 3000e-9, 10e-9]])  # 23
+final_graph('simuls32',[[12, 0.017, 1.3e-6, 4.5e-8],       # 20 F
+                        [8, 0.03, 1.5e-6, 4.5e-8],         # 21 F
+                        [5, 0.037, 2e-6, 4.5e-8],          # 22 F
+                        [2, 0.043, 4e-6, 4.5e-8],          # 23 F
+                        [8, 0.01, 300e-9, 325e-9],         # 20 S
+                        [7.3, 0.014, 1000e-9, 320e-9],     # 21 S
+                        [5, 0.037, 2000e-9, 300e-9],       # 22 S
+                        [3.5, 0.04, 4000e-9, 250e-9]])     # 23 S
+
+
+# pour shrubs: meme ssa densité, soot des 2 couches on changes, pas nécessairement meme thick
+# soot x2 ou 3
